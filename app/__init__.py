@@ -30,4 +30,7 @@ def create_app(config_object=None):
     def healthz():
         return "ok"
 
+    from app.auth import bp as auth_bp
+    app.register_blueprint(auth_bp)
+
     return app

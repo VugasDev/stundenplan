@@ -1,0 +1,20 @@
+:root { --bg:#f7f7f8; --card:#fff; --ink:#1a1a1a; --line:#e3e3e6; --accent:#3b82f6; }
+* { box-sizing: border-box; }
+body { margin:0; font-family: system-ui, sans-serif; background:var(--bg); color:var(--ink); }
+.nav { display:flex; gap:1rem; align-items:center; padding:.75rem 1rem; background:#fff; border-bottom:1px solid var(--line); }
+.nav .brand { font-weight:700; margin-right:auto; }
+.nav a { text-decoration:none; color:var(--ink); }
+.container { max-width: 1000px; margin: 1.5rem auto; padding: 0 1rem; }
+.card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:1rem; display:flex; flex-direction:column; gap:.6rem; max-width:420px; }
+.card label { display:flex; flex-direction:column; gap:.25rem; font-size:.9rem; }
+.card input { padding:.5rem; border:1px solid var(--line); border-radius:6px; }
+button { padding:.55rem .9rem; border:0; border-radius:6px; background:var(--accent); color:#fff; cursor:pointer; }
+.flash { padding:.6rem .8rem; border-radius:6px; margin-bottom:.75rem; }
+.flash-success { background:#e7f6ec; color:#166534; }
+.flash-error { background:#fdeaea; color:#991b1b; }
+table { width:100%; border-collapse:collapse; }
+th, td { border:1px solid var(--line); padding:.4rem; text-align:left; vertical-align:top; }
+.lesson { border-radius:6px; padding:.3rem .4rem; color:#fff; font-size:.8rem; }
+.lesson.cancelled { text-decoration:line-through; opacity:.7; }
+.badge { font-size:.7rem; padding:0 .3rem; border-radius:4px; background:#0003; }
+.toggle { display:flex; gap:.5rem; margin-bottom:1rem; }

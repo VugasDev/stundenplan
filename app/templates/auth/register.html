@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}Registrieren{% endblock %}
+{% block content %}
+<h1>Registrieren</h1>
+<form method="post" class="card">
+  {{ form.hidden_tag() }}
+  <label>{{ form.email.label }} {{ form.email() }}</label>
+  <label>{{ form.password.label }} {{ form.password(placeholder="min. 8 Zeichen") }}</label>
+  <label>{{ form.invite_code.label }} {{ form.invite_code() }}</label>
+  <button type="submit">Konto erstellen</button>
+</form>
+{% endblock %}
