@@ -1,0 +1,9 @@
+# Zugangsdaten – NIEMALS committen
+poc_accounts.json
+.env
+*.secret
+
+# Python
+.venv/
+__pycache__/
+*.pyc

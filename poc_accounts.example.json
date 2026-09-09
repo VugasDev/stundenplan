@@ -1,0 +1,16 @@
+[
+  {
+    "label": "Berufsschule",
+    "server": "xyz.webuntis.com",
+    "school": "meine-schule",
+    "username": "max.mustermann",
+    "password": "GEHEIM"
+  },
+  {
+    "label": "Zweiter Zugang",
+    "server": "xyz.webuntis.com",
+    "school": "andere-schule",
+    "username": "benutzer2",
+    "password": "GEHEIM"
+  }
+]
