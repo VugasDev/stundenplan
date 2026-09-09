@@ -43,6 +43,13 @@ und IP). Der Token ist an den aktuellen Passwort-Hash gebunden — nach dem
 Zurücksetzen ist er automatisch verbraucht. Wer den Link benutzt, gilt danach als
 E-Mail-bestätigt. Ob eine Adresse registriert ist, verrät das Formular nicht.
 
+## Zeitzone
+
+Die App rechnet Uhrzeiten in `TIMEZONE` (Standard `Europe/Berlin`), nicht in der
+Zeit des Servers — LXCs laufen üblicherweise auf UTC, und die "Jetzt"-Ansicht
+läge sonst im Sommer zwei Stunden zurück. Die Jetzt-Linie im Plan nutzt die Uhr
+des Browsers und ist davon unabhängig.
+
 ## Täglicher Abruf
 
 - Dateien aus `deploy/` nach `/etc/systemd/system/` kopieren, App nach `/opt/stundenplan`.

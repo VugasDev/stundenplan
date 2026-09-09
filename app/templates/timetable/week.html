@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "timetable/_macros.html" import block_el, bands, axis_col %}
+{% from "timetable/_macros.html" import block_el, bands, axis_col, jetzt_linie %}
 {% block title %}Woche{% endblock %}
 {% block content %}
 {% include "timetable/_nav.html" %}
@@ -24,6 +24,7 @@
       </div>
       <div class="tt-body" style="height:{{ '%.1f'|format(axis.height) }}px">
         {{ bands(axis) }}
+        {{ jetzt_linie(axis_daten, jetzt_sichtbar) }}
         {{ axis_col(axis) }}
         {% for tag, eintraege in spalten %}
           <div class="tt-col {{ 'heute' if tag == heute }}">

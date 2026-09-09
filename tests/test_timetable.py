@@ -140,3 +140,33 @@ def test_tagesansicht_nennt_den_wochentag_auf_deutsch(app, client):
     resp = client.get("/?view=day&day=2026-09-16")
     assert "Mittwoch".encode("utf-8") in resp.data
     assert b"Wednesday" not in resp.data
+
+
+def test_wochenansicht_zeigt_die_jetzt_linie_nur_in_der_aktuellen_woche(app, client):
+    u, acc = _login_user_with_lessons(app, client)
+    heute = datetime.date.today()
+    montag = heute - datetime.timedelta(days=heute.weekday())
+    db.session.add(_lesson(acc, heute.isoformat(), "07:30", "09:00"))
+    db.session.commit()
+    diese = client.get(f"/?view=week&week={montag.isoformat()}")
+    assert b'class="tt-now"' in diese.data
+    andere = client.get("/?view=week&week=2026-01-05")
+    assert b'class="tt-now"' not in andere.data
+
+
+def test_tagesansicht_zeigt_die_jetzt_linie_nur_heute(app, client):
+    u, acc = _login_user_with_lessons(app, client)
+    heute = datetime.date.today()
+    db.session.add_all([_lesson(acc, heute.isoformat(), "07:30", "09:00"),
+                        _lesson(acc, (heute + datetime.timedelta(days=1)).isoformat(),
+                                "07:30", "09:00", subject="MORGEN")])
+    db.session.commit()
+    assert b'class="tt-now"' in client.get(f"/?view=day&day={heute.isoformat()}").data
+    morgen = (heute + datetime.timedelta(days=1)).isoformat()
+    assert b'class="tt-now"' not in client.get(f"/?view=day&day={morgen}").data
+
+
+def test_agenda_haelt_sich_selbst_aktuell(app, client):
+    _login_user_with_lessons(app, client)
+    resp = client.get("/")
+    assert b"agenda-refresh.js" in resp.data

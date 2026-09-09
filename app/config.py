@@ -31,6 +31,9 @@ class Config:
     SESSION_COOKIE_SAMESITE = "Lax"
     SESSION_COOKIE_SECURE = _bool("SESSION_COOKIE_SECURE", False)
 
+    # Zeitzone des Unterrichts — der Server laeuft auf UTC.
+    TIMEZONE = os.environ.get("TIMEZONE", "Europe/Berlin")
+
     FETCH_WINDOW_DAYS = 21
 
     # Prozessweiter Socket-Timeout: verhindert, dass ein haengender SMTP- oder

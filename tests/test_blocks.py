@@ -232,3 +232,29 @@ def test_agenda_meldet_keinen_feierabend_solange_noch_etwas_kommt():
                             L("20:15", "21:45", subject="SLP2", day=DI)])
     view = agenda_view(blocks, _now(DI, "19:30"))
     assert view.feierabend is False
+
+
+# --- Daten fuer die Jetzt-Linie ---------------------------------------------
+
+from app.blocks import axis_payload  # noqa: E402
+
+
+def test_achse_liefert_ihre_segmente_fuer_den_browser():
+    axis = build_axis([B("13:00", "14:30"), B("17:00", "18:30")])
+    daten = axis_payload(axis)
+    assert daten["height"] == pytest.approx(axis.height)
+    # Minuten seit Mitternacht: im Browser einfacher zu rechnen als "13:00".
+    assert daten["segments"][0]["start"] == 780
+    assert daten["segments"][0]["end"] == 870
+    assert daten["segments"][0]["kind"] == "scaled"
+
+
+def test_segmentdaten_enthalten_auch_die_gestauchte_luecke():
+    daten = axis_payload(build_axis([B("13:00", "14:30"), B("17:00", "18:30")]))
+    gaps = [s for s in daten["segments"] if s["kind"] == "gap"]
+    assert len(gaps) == 1
+    assert (gaps[0]["start"], gaps[0]["end"]) == (870, 1020)
+
+
+def test_leere_achse_liefert_leere_segmentliste():
+    assert axis_payload(build_axis([])) == {"height": 0.0, "segments": []}

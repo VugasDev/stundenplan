@@ -8,7 +8,8 @@ from flask_login import login_required, current_user
 from app.extensions import db, limiter
 from app.models import WebUntisAccount, Lesson
 from app.fetch import fetch_account
-from app.blocks import merge_lessons, build_axis, agenda_view
+from app.blocks import merge_lessons, build_axis, agenda_view, axis_payload
+from app.zeit import local_now, local_today
 
 bp = Blueprint("timetable", __name__)
 
@@ -54,7 +55,8 @@ def index():
     accounts = _own_accounts()
     labels = {a.id: a.label for a in accounts}
     account_ids = [a.id for a in accounts]
-    heute = datetime.date.today()
+    zone = current_app.config["TIMEZONE"]
+    heute = local_today(zone)
 
     gemeinsam = {"accounts": accounts, "labels": labels, "view": view, "heute": heute}
 
@@ -71,6 +73,7 @@ def index():
                    for tag in tage]
         return render_template(
             "timetable/week.html", axis=axis, spalten=spalten,
+            axis_daten=axis_payload(axis), jetzt_sichtbar=monday <= heute <= sunday,
             monday=monday, sunday=sunday,
             prev_week=(monday - datetime.timedelta(days=7)).isoformat(),
             next_week=(monday + datetime.timedelta(days=7)).isoformat(),
@@ -82,6 +85,7 @@ def index():
         axis = build_axis(blocks)
         return render_template(
             "timetable/day.html", axis=axis, eintraege=_positioned(blocks, axis),
+            axis_daten=axis_payload(axis), jetzt_sichtbar=(tag == heute),
             tag=tag,
             prev_day=(tag - datetime.timedelta(days=1)).isoformat(),
             next_day=(tag + datetime.timedelta(days=1)).isoformat(),
@@ -90,7 +94,7 @@ def index():
     bis = heute + datetime.timedelta(days=AGENDA_VORSCHAU_TAGE)
     blocks = merge_lessons(_lessons_between(account_ids, heute, bis))
     return render_template("timetable/agenda.html",
-                           agenda=agenda_view(blocks, datetime.datetime.now()),
+                           agenda=agenda_view(blocks, local_now(zone)),
                            **gemeinsam)
 
 

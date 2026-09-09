@@ -5,11 +5,12 @@ import datetime
 from app.extensions import db
 from app.models import WebUntisAccount, Lesson, utcnow
 from app.lessons import normalize
+from app.zeit import local_today
 from app.webuntis_client import fetch_raw_lessons
 
 
 def fetch_account(account, cipher, today=None, window_days=21, fetcher=fetch_raw_lessons) -> None:
-    today = today or datetime.date.today()
+    today = today or local_today()
     end = today + datetime.timedelta(days=window_days)
     try:
         credentials = {
@@ -51,7 +52,9 @@ def main() -> None:
     from app import create_app
     app = create_app()
     with app.app_context():
-        run_all(app.extensions["cipher"], window_days=app.config["FETCH_WINDOW_DAYS"])
+        run_all(app.extensions["cipher"],
+                today=local_today(app.config["TIMEZONE"]),
+                window_days=app.config["FETCH_WINDOW_DAYS"])
 
 
 if __name__ == "__main__":

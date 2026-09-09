@@ -30,3 +30,11 @@
     {% endfor %}
   </div>
 {% endmacro %}
+
+{% macro jetzt_linie(axis_daten, sichtbar) %}
+  {% if sichtbar %}
+    <div class="tt-now" hidden><span class="tt-now-zeit"></span></div>
+    <script type="application/json" id="tt-axis-daten">{{ axis_daten|tojson }}</script>
+    <script src="{{ url_for('static', filename='jetzt-linie.js') }}" defer></script>
+  {% endif %}
+{% endmacro %}

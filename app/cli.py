@@ -15,6 +15,8 @@ def register_cli(app):
     def fetch_now():
         """Ruft alle Stundenpläne sofort ab (wie der tägliche Job)."""
         from app.fetch import run_all
+        from app.zeit import local_today
         run_all(current_app.extensions["cipher"],
+                today=local_today(current_app.config["TIMEZONE"]),
                 window_days=current_app.config["FETCH_WINDOW_DAYS"])
         click.echo("Abruf abgeschlossen.")

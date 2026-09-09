@@ -223,3 +223,19 @@ def wochentag_kurz(d: datetime.date) -> str:
 
 def wochentag_lang(d: datetime.date) -> str:
     return WOCHENTAGE_LANG[d.weekday()]
+
+
+def axis_payload(axis: Axis) -> dict:
+    """Die Achse in einer Form, die das Frontend lesen kann.
+
+    Zeiten als Minuten seit Mitternacht — damit muss der Browser keine
+    Uhrzeiten parsen, um die Jetzt-Linie zu setzen.
+    """
+    return {
+        "height": axis.height,
+        "segments": [
+            {"start": _minutes(s.start), "end": _minutes(s.end),
+             "kind": s.kind, "top": s.top, "height": s.height}
+            for s in axis.segments
+        ],
+    }

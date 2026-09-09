@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "timetable/_macros.html" import block_el, bands, axis_col %}
+{% from "timetable/_macros.html" import block_el, bands, axis_col, jetzt_linie %}
 {% block title %}{{ tag|wochentag_lang }}, {{ tag.strftime('%d.%m.') }}{% endblock %}
 {% block content %}
 {% include "timetable/_nav.html" %}
@@ -15,6 +15,7 @@
     <div class="tt-grid" style="--spalten:1">
       <div class="tt-body" style="height:{{ '%.1f'|format(axis.height) }}px">
         {{ bands(axis) }}
+        {{ jetzt_linie(axis_daten, jetzt_sichtbar) }}
         {{ axis_col(axis) }}
         <div class="tt-col">
           {% for b, top, height in eintraege %}
