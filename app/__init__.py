@@ -17,6 +17,9 @@ def create_app(config_object=None):
     csrf.init_app(app)
     mail.init_app(app)
 
+    from app.crypto import build_cipher
+    app.extensions["cipher"] = build_cipher(app)
+
     @app.get("/healthz")
     def healthz():
         return "ok"
