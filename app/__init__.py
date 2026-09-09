@@ -36,4 +36,7 @@ def create_app(config_object=None):
     from app.timetable import bp as timetable_bp
     app.register_blueprint(timetable_bp)
 
+    from app.accounts import bp as accounts_bp
+    app.register_blueprint(accounts_bp)
+
     return app

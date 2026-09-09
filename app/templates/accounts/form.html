@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Zugang{% endblock %}
+{% block content %}
+<h1>{% if mode == 'add' %}Zugang hinzufügen{% else %}Zugang bearbeiten{% endif %}</h1>
+<form method="post" class="card">
+  {{ form.hidden_tag() }}
+  <label>{{ form.label.label }} {{ form.label() }}</label>
+  <label>{{ form.color.label }} {{ form.color(type="color") }}</label>
+  <label>{{ form.server_url.label }} {{ form.server_url() }}</label>
+  <label>{{ form.school.label }} {{ form.school() }}</label>
+  <label>{{ form.username.label }} {{ form.username() }}</label>
+  <label>{{ form.password.label }}
+    {{ form.password(placeholder="leer lassen = unverändert" if mode == 'edit' else "") }}
+  </label>
+  <button type="submit">Speichern</button>
+</form>
+{% endblock %}
