@@ -8,4 +8,13 @@
   <label>{{ form.password.label }} {{ form.password() }}</label>
   <button type="submit">Anmelden</button>
 </form>
+<p><a href="{{ url_for('auth.forgot_password') }}">Passwort vergessen?</a></p>
+<details>
+  <summary>Keine Bestätigungsmail bekommen?</summary>
+  <form method="post" action="{{ url_for('auth.resend_confirmation') }}" class="card">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label>E-Mail <input type="email" name="email" required></label>
+    <button type="submit">Bestätigungsmail erneut senden</button>
+  </form>
+</details>
 {% endblock %}

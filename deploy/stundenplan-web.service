@@ -1,0 +1,28 @@
+[Unit]
+Description=WebUntis Stundenplan Web-App (gunicorn)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=notify
+User=stundenplan
+Group=stundenplan
+WorkingDirectory=/opt/stundenplan
+EnvironmentFile=/opt/stundenplan/.env
+# Ein Worker mit Threads: SQLite vertraegt keine parallelen Schreiber, und der
+# In-Memory-Rate-Limit-Store zaehlt nur innerhalb eines Prozesses korrekt.
+ExecStart=/opt/stundenplan/.venv/bin/gunicorn \
+    --workers 1 --threads 4 --timeout 120 \
+    --bind 127.0.0.1:8000 \
+    --access-logfile - --error-logfile - \
+    "app:create_app()"
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/opt/stundenplan
+
+[Install]
+WantedBy=multi-user.target

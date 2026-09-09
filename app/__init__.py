@@ -1,3 +1,5 @@
+import socket
+
 from flask import Flask
 
 from app.config import Config
@@ -10,6 +12,8 @@ def create_app(config_object=None):
 
     if not app.config.get("SECRET_KEY"):
         raise RuntimeError("SECRET_KEY ist nicht gesetzt — bitte als Umgebungsvariable setzen.")
+
+    socket.setdefaulttimeout(app.config["NETWORK_TIMEOUT"])
 
     db.init_app(app)
     login_manager.init_app(app)

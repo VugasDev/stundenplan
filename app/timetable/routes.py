@@ -5,7 +5,7 @@ import datetime
 from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app
 from flask_login import login_required, current_user
 
-from app.extensions import db
+from app.extensions import db, limiter
 from app.models import WebUntisAccount, Lesson
 from app.fetch import fetch_account
 
@@ -67,6 +67,7 @@ def index():
 
 
 @bp.route("/refresh", methods=["POST"])
+@limiter.limit("10 per hour")
 @login_required
 def refresh():
     cipher = current_app.extensions["cipher"]

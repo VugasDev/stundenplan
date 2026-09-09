@@ -4,6 +4,8 @@ body { margin:0; font-family: system-ui, sans-serif; background:var(--bg); color
 .nav { display:flex; gap:1rem; align-items:center; padding:.75rem 1rem; background:#fff; border-bottom:1px solid var(--line); }
 .nav .brand { font-weight:700; margin-right:auto; }
 .nav a { text-decoration:none; color:var(--ink); }
+.nav-logout { display:inline; }
+.nav-logout button { background:none; color:var(--ink); padding:0; font:inherit; }
 .container { max-width: 1000px; margin: 1.5rem auto; padding: 0 1rem; }
 .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:1rem; display:flex; flex-direction:column; gap:.6rem; max-width:420px; }
 .card label { display:flex; flex-direction:column; gap:.25rem; font-size:.9rem; }

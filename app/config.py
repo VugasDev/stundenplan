@@ -25,13 +25,17 @@ class Config:
     MAIL_USE_TLS = _bool("MAIL_USE_TLS", False)
     MAIL_USERNAME = os.environ.get("MAIL_USERNAME") or None
     MAIL_PASSWORD = os.environ.get("MAIL_PASSWORD") or None
-    MAIL_DEFAULT_SENDER = os.environ.get("MAIL_DEFAULT_SENDER", "stundenplan@example.org")
+    MAIL_DEFAULT_SENDER = os.environ.get("MAIL_DEFAULT_SENDER", "noreply@example.org")
 
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = "Lax"
     SESSION_COOKIE_SECURE = _bool("SESSION_COOKIE_SECURE", False)
 
     FETCH_WINDOW_DAYS = 21
+
+    # Prozessweiter Socket-Timeout: verhindert, dass ein haengender SMTP- oder
+    # WebUntis-Server einen Gunicorn-Worker dauerhaft blockiert.
+    NETWORK_TIMEOUT = int(os.environ.get("NETWORK_TIMEOUT", "20"))
 
     RATELIMIT_STORAGE_URI = os.environ.get("RATELIMIT_STORAGE_URI", "memory://")
 

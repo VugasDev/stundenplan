@@ -12,7 +12,10 @@
   {% if current_user.is_authenticated %}
     <a href="{{ url_for('timetable.index') }}">Plan</a>
     <a href="{{ url_for('accounts.list_accounts') }}">Zugänge</a>
-    <a href="{{ url_for('auth.logout') }}">Abmelden</a>
+    <form method="post" action="{{ url_for('auth.logout') }}" class="nav-logout">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit">Abmelden</button>
+    </form>
   {% else %}
     <a href="{{ url_for('auth.login') }}">Anmelden</a>
     <a href="{{ url_for('auth.register') }}">Registrieren</a>

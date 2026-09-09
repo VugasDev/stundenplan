@@ -7,3 +7,7 @@ poc_accounts.json
 .venv/
 __pycache__/
 *.pyc
+
+# SQLite-DB und Instance-Ordner
+instance/
+*.db
