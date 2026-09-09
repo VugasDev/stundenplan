@@ -1,0 +1,68 @@
+import datetime
+
+from argon2 import PasswordHasher
+from argon2.exceptions import VerifyMismatchError, VerificationError, InvalidHashError
+from flask_login import UserMixin
+
+from app.extensions import db
+
+_hasher = PasswordHasher()
+
+
+class User(UserMixin, db.Model):
+    __tablename__ = "users"
+    id = db.Column(db.Integer, primary_key=True)
+    email = db.Column(db.String(255), unique=True, nullable=False, index=True)
+    password_hash = db.Column(db.String(255), nullable=False)
+    confirmed = db.Column(db.Boolean, nullable=False, default=False)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.datetime.utcnow)
+
+    accounts = db.relationship(
+        "WebUntisAccount", back_populates="user",
+        cascade="all, delete-orphan",
+    )
+
+    def set_password(self, password: str) -> None:
+        self.password_hash = _hasher.hash(password)
+
+    def check_password(self, password: str) -> bool:
+        try:
+            return _hasher.verify(self.password_hash, password)
+        except (VerifyMismatchError, VerificationError, InvalidHashError):
+            return False
+
+
+class WebUntisAccount(db.Model):
+    __tablename__ = "webuntis_accounts"
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
+    label = db.Column(db.String(100), nullable=False)
+    color = db.Column(db.String(9), nullable=False, default="#3b82f6")
+    server_url = db.Column(db.String(255), nullable=False)
+    school = db.Column(db.String(255), nullable=False)
+    username = db.Column(db.String(255), nullable=False)
+    password_encrypted = db.Column(db.Text, nullable=False)
+    last_fetch_at = db.Column(db.DateTime, nullable=True)
+    last_fetch_status = db.Column(db.String(255), nullable=True)
+
+    user = db.relationship("User", back_populates="accounts")
+    lessons = db.relationship(
+        "Lesson", back_populates="account",
+        cascade="all, delete-orphan",
+    )
+
+
+class Lesson(db.Model):
+    __tablename__ = "lessons"
+    id = db.Column(db.Integer, primary_key=True)
+    account_id = db.Column(db.Integer, db.ForeignKey("webuntis_accounts.id"), nullable=False, index=True)
+    date = db.Column(db.Date, nullable=False, index=True)
+    start_time = db.Column(db.Time, nullable=False)
+    end_time = db.Column(db.Time, nullable=False)
+    subject = db.Column(db.String(100), nullable=False)
+    room = db.Column(db.String(100), nullable=False, default="")
+    teacher = db.Column(db.String(255), nullable=False, default="")
+    status = db.Column(db.String(20), nullable=False, default="normal")
+    note = db.Column(db.String(255), nullable=False, default="")
+
+    account = db.relationship("WebUntisAccount", back_populates="lessons")

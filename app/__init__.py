@@ -20,6 +20,12 @@ def create_app(config_object=None):
     from app.crypto import build_cipher
     app.extensions["cipher"] = build_cipher(app)
 
+    from app import models  # noqa: F401  (Tabellen registrieren)
+
+    @login_manager.user_loader
+    def load_user(user_id):
+        return db.session.get(models.User, int(user_id))
+
     @app.get("/healthz")
     def healthz():
         return "ok"
