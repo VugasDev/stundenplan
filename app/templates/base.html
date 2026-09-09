@@ -11,9 +11,7 @@
   <a class="brand" href="/">Stundenplan</a>
   {% if current_user.is_authenticated %}
     <a href="{{ url_for('timetable.index') }}">Plan</a>
-    {# Literaler Pfad statt url_for('accounts.list_accounts'): das accounts-Blueprint
-       entsteht erst in Task 10. "/accounts" ist die dort vorgesehene Route. #}
-    <a href="/accounts">Zugänge</a>
+    <a href="{{ url_for('accounts.list_accounts') }}">Zugänge</a>
     <a href="{{ url_for('auth.logout') }}">Abmelden</a>
   {% else %}
     <a href="{{ url_for('auth.login') }}">Anmelden</a>

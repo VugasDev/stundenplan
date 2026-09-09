@@ -13,10 +13,20 @@ ihre Stundenpläne gebündelt (Woche/Agenda). Ein täglicher Job ruft ab.
 4. Starten (Entwicklung): `flask --app app run`
 5. Produktion: hinter Gunicorn (`gunicorn "app:create_app()"`) + Caddy/nginx (HTTPS).
    `SESSION_COOKIE_SECURE=true` setzen.
+   Die App lädt `.env` automatisch über `python-dotenv`. Das gilt für den
+   Flask-Entwicklungsserver und `python -m app.fetch`; für den Gunicorn-Prozess
+   muss die Umgebung aber trotzdem vorhanden sein (z.B. eigene systemd-Unit mit
+   `EnvironmentFile=/opt/stundenplan/.env`, oder vor dem Start `set -a; . .env; set +a`).
+   Bei mehreren Gunicorn-Workern MUSS `RATELIMIT_STORAGE_URI` auf einen
+   gemeinsamen Backend-Store zeigen (z.B. `redis://localhost:6379`), sonst zählt
+   jeder Worker die Rate-Limits separat.
 
 ## Täglicher Abruf
 
 - Dateien aus `deploy/` nach `/etc/systemd/system/` kopieren, App nach `/opt/stundenplan`.
+- Der Fetch-Service läuft als dedizierter `stundenplan`-User, nicht als root:
+  `sudo useradd --system --home /opt/stundenplan stundenplan` und
+  `sudo chown -R stundenplan:stundenplan /opt/stundenplan`.
 - `systemctl enable --now stundenplan-fetch.timer`
 - Manuell: `flask --app app fetch-now` oder `python -m app.fetch`
 

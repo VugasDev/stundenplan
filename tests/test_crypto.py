@@ -1,5 +1,5 @@
 import pytest
-from cryptography.fernet import Fernet
+from cryptography.fernet import Fernet, InvalidToken
 from app.crypto import CredentialCipher
 
 
@@ -18,5 +18,5 @@ def test_token_is_str():
 def test_wrong_key_cannot_decrypt():
     token = CredentialCipher(Fernet.generate_key()).encrypt("x")
     other = CredentialCipher(Fernet.generate_key())
-    with pytest.raises(Exception):
+    with pytest.raises(InvalidToken):
         other.decrypt(token)

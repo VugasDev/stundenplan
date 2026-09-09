@@ -35,7 +35,8 @@ def fetch_account(account, cipher, today=None, window_days=21, fetcher=fetch_raw
         account.last_fetch_status = "ok"
     except Exception as exc:  # Fehler pro Account isolieren, Status festhalten
         db.session.rollback()
-        account.last_fetch_status = f"{type(exc).__name__}: {exc}"[:255]
+        msg = str(exc).strip()
+        account.last_fetch_status = (f"{type(exc).__name__}: {msg}" if msg else type(exc).__name__)[:255]
     finally:
         account.last_fetch_at = utcnow()
         db.session.commit()

@@ -4,6 +4,12 @@ After=network-online.target
 
 [Service]
 Type=oneshot
+User=stundenplan
+Group=stundenplan
 WorkingDirectory=/opt/stundenplan
 EnvironmentFile=/opt/stundenplan/.env
 ExecStart=/opt/stundenplan/.venv/bin/python -m app.fetch
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/stundenplan
