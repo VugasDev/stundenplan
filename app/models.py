@@ -9,13 +9,18 @@ from app.extensions import db
 _hasher = PasswordHasher()
 
 
+def utcnow() -> datetime.datetime:
+    """Naiver UTC-Zeitstempel (ersetzt das in Python 3.12 deprecated datetime.utcnow)."""
+    return datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
+
+
 class User(UserMixin, db.Model):
     __tablename__ = "users"
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(255), unique=True, nullable=False, index=True)
     password_hash = db.Column(db.String(255), nullable=False)
     confirmed = db.Column(db.Boolean, nullable=False, default=False)
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.datetime.utcnow)
+    created_at = db.Column(db.DateTime, nullable=False, default=utcnow)
 
     accounts = db.relationship(
         "WebUntisAccount", back_populates="user",
