@@ -69,6 +69,50 @@ def test_fetch_account_records_error(app):
     assert "Passwort abgelehnt" in acc.last_fetch_status
 
 
+def test_fetch_account_isolates_decrypt_error(app):
+    cipher = CredentialCipher(Fernet.generate_key())
+    acc = _make_account(cipher)
+    acc.password_encrypted = "nicht-entschluesselbar"
+    db.session.commit()
+
+    calls = []
+
+    def must_not_be_called(creds, start, end):
+        calls.append(creds)
+        return []
+
+    fetch.fetch_account(acc, cipher, today=datetime.date(2026, 9, 10), fetcher=must_not_be_called)
+
+    assert calls == []
+    assert acc.last_fetch_status is not None
+    assert acc.last_fetch_status != "ok"
+
+
+def test_fetch_account_keeps_lessons_outside_window(app):
+    cipher = CredentialCipher(Fernet.generate_key())
+    acc = _make_account(cipher)
+    today = datetime.date(2026, 9, 10)
+    window_days = 21
+
+    before = Lesson(account_id=acc.id, date=today - datetime.timedelta(days=1),
+                    start_time=datetime.time(7, 0), end_time=datetime.time(7, 45),
+                    subject="VORHER", room="", teacher="", status="normal")
+    after = Lesson(account_id=acc.id, date=today + datetime.timedelta(days=window_days + 1),
+                   start_time=datetime.time(7, 0), end_time=datetime.time(7, 45),
+                   subject="NACHHER", room="", teacher="", status="normal")
+    db.session.add_all([before, after])
+    db.session.commit()
+
+    d = datetime.datetime(2026, 9, 11, 8, 0)
+    raw = [RawLesson(d, d + datetime.timedelta(minutes=45), "IM-FENSTER", "C1", "GS", None)]
+
+    fetch.fetch_account(acc, cipher, today=today, window_days=window_days, fetcher=lambda creds, s, e: raw)
+
+    subjects = {l.subject for l in db.session.query(Lesson).all()}
+    assert subjects == {"VORHER", "NACHHER", "IM-FENSTER"}
+    assert acc.last_fetch_status == "ok"
+
+
 def test_run_all_isolates_failures(app):
     cipher = CredentialCipher(Fernet.generate_key())
     acc1 = _make_account(cipher)

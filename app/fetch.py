@@ -11,13 +11,13 @@ from app.webuntis_client import fetch_raw_lessons
 def fetch_account(account, cipher, today=None, window_days=21, fetcher=fetch_raw_lessons) -> None:
     today = today or datetime.date.today()
     end = today + datetime.timedelta(days=window_days)
-    credentials = {
-        "server_url": account.server_url,
-        "school": account.school,
-        "username": account.username,
-        "password": cipher.decrypt(account.password_encrypted),
-    }
     try:
+        credentials = {
+            "server_url": account.server_url,
+            "school": account.school,
+            "username": account.username,
+            "password": cipher.decrypt(account.password_encrypted),
+        }
         raw = fetcher(credentials, today, end)
         normalized = normalize(raw)
 
