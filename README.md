@@ -12,7 +12,10 @@ ihre Stundenpläne gebündelt (Woche/Agenda). Ein täglicher Job ruft ab.
 3. DB initialisieren: `flask --app app init-db`
 4. Starten (Entwicklung): `flask --app app run`
 5. Produktion: `deploy/stundenplan-web.service` nach `/etc/systemd/system/` kopieren
-   (startet Gunicorn auf `127.0.0.1:8000`) + Caddy davor (HTTPS).
+   (startet Gunicorn auf `0.0.0.0:8000`) + Reverse-Proxy davor (HTTPS).
+   Die App bindet auf alle Interfaces, damit der Proxy von einem anderen
+   Host aus zugreifen kann — sie gehört deshalb in ein Server-Netz, das
+   nicht direkt aus dem Internet erreichbar ist.
    `SESSION_COOKIE_SECURE=true` setzen.
    Die App lädt `.env` automatisch über `python-dotenv`. Das gilt für den
    Flask-Entwicklungsserver und `python -m app.fetch`; für den Gunicorn-Prozess
