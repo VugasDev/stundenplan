@@ -8,62 +8,90 @@ from flask_login import login_required, current_user
 from app.extensions import db, limiter
 from app.models import WebUntisAccount, Lesson
 from app.fetch import fetch_account
+from app.blocks import merge_lessons, build_axis, agenda_view
 
 bp = Blueprint("timetable", __name__)
+
+AGENDA_VORSCHAU_TAGE = 14
 
 
 def _monday_of(d: datetime.date) -> datetime.date:
     return d - datetime.timedelta(days=d.weekday())
 
 
-def _parse_week(arg: str | None) -> datetime.date:
+def _parse_date(arg: str | None, default: datetime.date) -> datetime.date:
     if arg:
         try:
-            return _monday_of(datetime.date.fromisoformat(arg))
+            return datetime.date.fromisoformat(arg)
         except ValueError:
             pass
-    return _monday_of(datetime.date.today())
+    return default
 
 
-def _own_account_ids() -> list[int]:
-    rows = db.session.query(WebUntisAccount.id).filter_by(user_id=current_user.id).all()
-    return [r[0] for r in rows]
+def _own_accounts() -> list[WebUntisAccount]:
+    return db.session.query(WebUntisAccount).filter_by(user_id=current_user.id).all()
+
+
+def _lessons_between(account_ids, von: datetime.date, bis: datetime.date):
+    if not account_ids:
+        return []
+    return (db.session.query(Lesson)
+            .filter(Lesson.account_id.in_(account_ids),
+                    Lesson.date >= von, Lesson.date <= bis)
+            .order_by(Lesson.date, Lesson.start_time).all())
+
+
+def _positioned(blocks, axis):
+    """Ergaenzt jeden Block um seine Lage auf der Achse."""
+    return [(b, axis.y(b.start_time), axis.span(b.start_time, b.end_time))
+            for b in blocks]
 
 
 @bp.route("/")
 @login_required
 def index():
-    view = request.args.get("view", "week")
-    monday = _parse_week(request.args.get("week"))
-    sunday = monday + datetime.timedelta(days=6)
-
-    account_ids = _own_account_ids()
-    accounts = db.session.query(WebUntisAccount).filter_by(user_id=current_user.id).all()
-    colors = {a.id: a.color for a in accounts}
+    view = request.args.get("view", "agenda")
+    accounts = _own_accounts()
     labels = {a.id: a.label for a in accounts}
+    account_ids = [a.id for a in accounts]
+    heute = datetime.date.today()
 
-    lessons = []
-    if account_ids:
-        lessons = (db.session.query(Lesson)
-                   .filter(Lesson.account_id.in_(account_ids),
-                           Lesson.date >= monday, Lesson.date <= sunday)
-                   .order_by(Lesson.date, Lesson.start_time).all())
+    gemeinsam = {"accounts": accounts, "labels": labels, "view": view, "heute": heute}
 
-    days = [monday + datetime.timedelta(days=i) for i in range(7)]
-    # Zeitschienen = alle vorkommenden Startzeiten, sortiert
-    slots = sorted({l.start_time for l in lessons})
-    grid = {(l.date, l.start_time): [] for l in lessons}
-    for l in lessons:
-        grid[(l.date, l.start_time)].append(l)
+    if view == "week":
+        monday = _monday_of(_parse_date(request.args.get("week"), heute))
+        sunday = monday + datetime.timedelta(days=6)
+        blocks = merge_lessons(_lessons_between(account_ids, monday, sunday))
+        axis = build_axis(blocks)
+        # Wochenende nur zeigen, wenn dort tatsaechlich Unterricht liegt.
+        belegte_tage = {b.date for b in blocks}
+        tage = [monday + datetime.timedelta(days=i) for i in range(7)
+                if i < 5 or (monday + datetime.timedelta(days=i)) in belegte_tage]
+        spalten = [(tag, _positioned([b for b in blocks if b.date == tag], axis))
+                   for tag in tage]
+        return render_template(
+            "timetable/week.html", axis=axis, spalten=spalten,
+            monday=monday, sunday=sunday,
+            prev_week=(monday - datetime.timedelta(days=7)).isoformat(),
+            next_week=(monday + datetime.timedelta(days=7)).isoformat(),
+            **gemeinsam)
 
-    return render_template(
-        "timetable/index.html",
-        view=view, monday=monday, sunday=sunday,
-        prev_week=(monday - datetime.timedelta(days=7)).isoformat(),
-        next_week=(monday + datetime.timedelta(days=7)).isoformat(),
-        days=days, slots=slots, grid=grid, lessons=lessons,
-        colors=colors, labels=labels, accounts=accounts,
-    )
+    if view == "day":
+        tag = _parse_date(request.args.get("day"), heute)
+        blocks = merge_lessons(_lessons_between(account_ids, tag, tag))
+        axis = build_axis(blocks)
+        return render_template(
+            "timetable/day.html", axis=axis, eintraege=_positioned(blocks, axis),
+            tag=tag,
+            prev_day=(tag - datetime.timedelta(days=1)).isoformat(),
+            next_day=(tag + datetime.timedelta(days=1)).isoformat(),
+            **gemeinsam)
+
+    bis = heute + datetime.timedelta(days=AGENDA_VORSCHAU_TAGE)
+    blocks = merge_lessons(_lessons_between(account_ids, heute, bis))
+    return render_template("timetable/agenda.html",
+                           agenda=agenda_view(blocks, datetime.datetime.now()),
+                           **gemeinsam)
 
 
 @bp.route("/refresh", methods=["POST"])
@@ -71,8 +99,7 @@ def index():
 @login_required
 def refresh():
     cipher = current_app.extensions["cipher"]
-    accounts = db.session.query(WebUntisAccount).filter_by(user_id=current_user.id).all()
-    for account in accounts:
+    for account in _own_accounts():
         fetch_account(account, cipher)
     flash("Stundenpläne aktualisiert.", "success")
-    return redirect(url_for("timetable.index"))
+    return redirect(request.referrer or url_for("timetable.index"))

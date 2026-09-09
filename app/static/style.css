@@ -16,7 +16,96 @@ button { padding:.55rem .9rem; border:0; border-radius:6px; background:var(--acc
 .flash-error { background:#fdeaea; color:#991b1b; }
 table { width:100%; border-collapse:collapse; }
 th, td { border:1px solid var(--line); padding:.4rem; text-align:left; vertical-align:top; }
-.lesson { border-radius:6px; padding:.3rem .4rem; color:#fff; font-size:.8rem; }
-.lesson.cancelled { text-decoration:line-through; opacity:.7; }
-.badge { font-size:.7rem; padding:0 .3rem; border-radius:4px; background:#0003; }
-.toggle { display:flex; gap:.5rem; margin-bottom:1rem; }
+
+/* --- Stundenplan ---------------------------------------------------------- */
+:root {
+  --tt-normal:#3b82f6; --tt-normal-bg:#eff6ff;
+  --tt-sub:#b45309;    --tt-sub-bg:#fffbeb;
+  --tt-cancel:#b91c1c; --tt-cancel-bg:#fef2f2;
+  --tt-axis-w:52px;
+}
+.tt-nav { display:flex; align-items:center; gap:1rem; margin-bottom:1rem; flex-wrap:wrap; }
+.tt-views { display:flex; gap:.25rem; background:#fff; border:1px solid var(--line);
+            border-radius:8px; padding:.2rem; }
+.tt-views a { padding:.35rem .8rem; border-radius:6px; text-decoration:none; color:var(--ink);
+              font-size:.9rem; }
+.tt-views a.aktiv { background:var(--accent); color:#fff; }
+.tt-refresh { background:#fff; color:var(--ink); border:1px solid var(--line); font-size:.85rem; }
+.tt-nav form { margin-left:auto; }
+.tt-zeitraum { display:flex; align-items:center; gap:1rem; margin-bottom:.75rem; }
+.tt-zeitraum a { text-decoration:none; font-size:1.2rem; padding:0 .4rem; color:var(--ink); }
+.tt-leer, .tt-hinweis { color:#666; }
+
+.tt-scroll { overflow-x:auto; }
+.tt-grid { min-width:100%; }
+.tt-head, .tt-body {
+  display:grid;
+  grid-template-columns:var(--tt-axis-w) repeat(var(--spalten), minmax(96px, 1fr));
+}
+.tt-head-day { text-align:center; font-size:.8rem; padding:.4rem 0; font-weight:600;
+               border-bottom:1px solid var(--line); }
+.tt-head-day span { display:block; font-weight:400; color:#666; }
+.tt-head-day.heute { color:var(--accent); }
+.tt-head-axis { border-bottom:1px solid var(--line); }
+
+.tt-body { position:relative; }
+.tt-axis { position:relative; }
+.tt-tick { position:absolute; right:.5rem; transform:translateY(-50%);
+           font-size:.72rem; color:#888; white-space:nowrap; }
+.tt-col { position:relative; border-left:1px solid var(--line); }
+.tt-col.heute { background:#3b82f60a; }
+
+/* Gestauchte Freizeit: quer ueber alle Spalten */
+.tt-gap { position:absolute; left:0; right:0; display:flex; align-items:center;
+          justify-content:center;
+          background:repeating-linear-gradient(45deg,#f2f2f4,#f2f2f4 6px,#eaeaee 6px,#eaeaee 12px);
+          border-top:1px dashed #c9c9d1; border-bottom:1px dashed #c9c9d1; }
+.tt-gap span { font-size:.72rem; color:#777; background:var(--bg); padding:.1rem .5rem;
+               border-radius:10px; }
+
+.tt-block { position:absolute; left:2px; right:2px; overflow:hidden;
+            border-radius:6px; padding:.25rem .4rem; font-size:.78rem; line-height:1.25;
+            border-left:3px solid var(--tt-normal); background:var(--tt-normal-bg);
+            color:#1a1a1a; }
+.tt-block-head { display:flex; gap:.3rem; align-items:baseline; }
+.tt-subject { font-size:.85rem; }
+.tt-class { margin-left:auto; font-size:.68rem; color:#666; white-space:nowrap; }
+.tt-time, .tt-room, .tt-teacher { color:#555; font-size:.72rem; }
+.tt-substitution { border-left-color:var(--tt-sub); background:var(--tt-sub-bg); }
+.tt-cancelled { border-left-color:var(--tt-cancel); background:var(--tt-cancel-bg); opacity:.75; }
+.tt-cancelled .tt-subject { text-decoration:line-through; }
+.tt-badge { display:inline-block; font-size:.65rem; padding:0 .3rem; border-radius:4px;
+            background:#0000000f; color:#444; }
+
+.tt-tag .tt-block { font-size:.85rem; padding:.4rem .6rem; }
+.tt-tag .tt-grid { min-width:0; max-width:560px; }
+
+/* Agenda */
+.ag-karte { background:var(--card); border:1px solid var(--line); border-left:4px solid var(--tt-normal);
+            border-radius:10px; padding:.9rem 1rem; margin-bottom:.75rem; max-width:520px; }
+.ag-karte.tt-substitution { border-left-color:var(--tt-sub); }
+.ag-karte.tt-cancelled { border-left-color:var(--tt-cancel); }
+.ag-marke { font-size:.7rem; text-transform:uppercase; letter-spacing:.05em; color:#888; }
+.ag-fach { font-size:1.5rem; font-weight:600; margin:.15rem 0; }
+.ag-meta { color:#555; font-size:.9rem; }
+.ag-laeuft { border-left-color:#16a34a; }
+.ag-frei .ag-fach { color:#666; font-weight:500; }
+.ag-schluss { color:#666; font-size:.9rem; margin:-.25rem 0 .75rem; max-width:520px; }
+.ag-rest { max-width:520px; }
+.ag-rest h2 { font-size:.85rem; text-transform:uppercase; letter-spacing:.05em;
+              color:#888; font-weight:600; margin:1.25rem 0 .5rem; }
+.ag-zeile { display:flex; gap:.6rem; align-items:baseline; padding:.5rem .75rem;
+            border:1px solid var(--line); border-left:3px solid var(--tt-normal);
+            border-radius:8px; background:var(--card); margin-bottom:.4rem; }
+.ag-zeile.tt-substitution { border-left-color:var(--tt-sub); }
+.ag-zeile.tt-cancelled { border-left-color:var(--tt-cancel); opacity:.75; }
+.ag-zeile.tt-cancelled .ag-fach-klein { text-decoration:line-through; }
+.ag-zeit { font-variant-numeric:tabular-nums; color:#555; font-size:.85rem; }
+.ag-fach-klein { font-weight:600; }
+.ag-meta-klein { margin-left:auto; color:#777; font-size:.8rem; }
+
+@media (max-width:640px) {
+  .tt-head, .tt-body { grid-template-columns:40px repeat(var(--spalten), minmax(84px,1fr)); }
+  :root { --tt-axis-w:40px; }
+  .ag-fach { font-size:1.3rem; }
+}

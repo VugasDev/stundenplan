@@ -46,6 +46,10 @@ def create_app(config_object=None):
     from werkzeug.middleware.proxy_fix import ProxyFix
     app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 
+    from app.blocks import wochentag_kurz, wochentag_lang
+    app.jinja_env.filters["wochentag_kurz"] = wochentag_kurz
+    app.jinja_env.filters["wochentag_lang"] = wochentag_lang
+
     from app.cli import register_cli
     register_cli(app)
 

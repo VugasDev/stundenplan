@@ -34,7 +34,7 @@ def add_account():
         cipher = current_app.extensions["cipher"]
         account = WebUntisAccount(
             user_id=current_user.id,
-            label=form.label.data, color=form.color.data,
+            label=form.label.data,
             server_url=form.server_url.data, school=form.school.data,
             username=form.username.data,
             password_encrypted=cipher.encrypt(form.password.data),
@@ -53,7 +53,6 @@ def edit_account(account_id):
     form = AccountForm(obj=account)
     if form.validate_on_submit():
         account.label = form.label.data
-        account.color = form.color.data
         account.server_url = form.server_url.data
         account.school = form.school.data
         account.username = form.username.data

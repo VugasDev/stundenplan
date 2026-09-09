@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% from "timetable/_macros.html" import block_el, bands, axis_col %}
+{% block title %}{{ tag|wochentag_lang }}, {{ tag.strftime('%d.%m.') }}{% endblock %}
+{% block content %}
+{% include "timetable/_nav.html" %}
+
+<div class="tt-zeitraum">
+  <a href="{{ url_for('timetable.index', view='day', day=prev_day) }}">←</a>
+  <strong>{{ tag|wochentag_lang }}, {{ tag.strftime('%d.%m.%Y') }}</strong>
+  <a href="{{ url_for('timetable.index', view='day', day=next_day) }}">→</a>
+</div>
+
+<div class="tt tt-tag" data-view="day">
+  {% if axis.height %}
+    <div class="tt-grid" style="--spalten:1">
+      <div class="tt-body" style="height:{{ '%.1f'|format(axis.height) }}px">
+        {{ bands(axis) }}
+        {{ axis_col(axis) }}
+        <div class="tt-col">
+          {% for b, top, height in eintraege %}
+            {{ block_el(b, labels[b.account_id], top, height) }}
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  {% else %}
+    <p class="tt-leer">An diesem Tag ist kein Unterricht.</p>
+  {% endif %}
+</div>
+{% endblock %}

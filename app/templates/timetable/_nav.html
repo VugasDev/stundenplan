@@ -1,0 +1,15 @@
+<div class="tt-nav">
+  <div class="tt-views">
+    <a class="{{ 'aktiv' if view == 'agenda' }}" href="{{ url_for('timetable.index') }}">Jetzt</a>
+    <a class="{{ 'aktiv' if view == 'day' }}" href="{{ url_for('timetable.index', view='day') }}">Tag</a>
+    <a class="{{ 'aktiv' if view == 'week' }}" href="{{ url_for('timetable.index', view='week') }}">Woche</a>
+  </div>
+  <form method="post" action="{{ url_for('timetable.refresh') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button type="submit" class="tt-refresh">Aktualisieren</button>
+  </form>
+</div>
+{% if not accounts %}
+  <p class="tt-hinweis">Noch keine WebUntis-Zugänge.
+    <a href="{{ url_for('accounts.add_account') }}">Jetzt hinzufügen</a>.</p>
+{% endif %}

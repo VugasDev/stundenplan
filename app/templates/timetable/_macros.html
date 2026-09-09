@@ -1,0 +1,32 @@
+{% macro block_el(b, label, top, height, kompakt=false) %}
+  <div class="tt-block tt-{{ b.status }}"
+       style="top:{{ '%.1f'|format(top) }}px; height:{{ '%.1f'|format(height) }}px">
+    <div class="tt-block-head">
+      <strong class="tt-subject">{{ b.subject }}</strong>
+      <span class="tt-class">{{ label }}</span>
+    </div>
+    <div class="tt-time">{{ b.start_time.strftime('%H:%M') }}–{{ b.end_time.strftime('%H:%M') }}</div>
+    {% if b.room %}<div class="tt-room">{{ b.room }}</div>{% endif %}
+    {% if b.teacher and not kompakt %}<div class="tt-teacher">{{ b.teacher }}</div>{% endif %}
+    {% if b.status == 'substitution' %}<span class="tt-badge">Vertretung</span>{% endif %}
+    {% if b.status == 'cancelled' %}<span class="tt-badge">entfällt</span>{% endif %}
+  </div>
+{% endmacro %}
+
+{% macro bands(axis) %}
+  {% for seg in axis.segments %}
+    {% if seg.kind == 'gap' %}
+      <div class="tt-gap" style="top:{{ '%.1f'|format(seg.top) }}px; height:{{ '%.1f'|format(seg.height) }}px">
+        <span>{{ seg.label }}</span>
+      </div>
+    {% endif %}
+  {% endfor %}
+{% endmacro %}
+
+{% macro axis_col(axis) %}
+  <div class="tt-axis">
+    {% for zeit, y in axis.ticks %}
+      <div class="tt-tick" style="top:{{ '%.1f'|format(y) }}px">{{ zeit.strftime('%H:%M') }}</div>
+    {% endfor %}
+  </div>
+{% endmacro %}

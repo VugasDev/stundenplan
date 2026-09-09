@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% from "timetable/_macros.html" import block_el, bands, axis_col %}
+{% block title %}Woche{% endblock %}
+{% block content %}
+{% include "timetable/_nav.html" %}
+
+<div class="tt-zeitraum">
+  <a href="{{ url_for('timetable.index', view='week', week=prev_week) }}">←</a>
+  <strong>{{ monday.strftime('%d.%m.') }}–{{ sunday.strftime('%d.%m.%Y') }}</strong>
+  <a href="{{ url_for('timetable.index', view='week', week=next_week) }}">→</a>
+</div>
+
+<div class="tt" data-view="week">
+  {% if axis.height %}
+  <div class="tt-scroll">
+    <div class="tt-grid" style="--spalten:{{ spalten|length }}">
+      <div class="tt-head">
+        <div class="tt-head-axis"></div>
+        {% for tag, _ in spalten %}
+          <div class="tt-head-day {{ 'heute' if tag == heute }}">
+            {{ tag|wochentag_kurz }}<span>{{ tag.strftime('%d.%m.') }}</span>
+          </div>
+        {% endfor %}
+      </div>
+      <div class="tt-body" style="height:{{ '%.1f'|format(axis.height) }}px">
+        {{ bands(axis) }}
+        {{ axis_col(axis) }}
+        {% for tag, eintraege in spalten %}
+          <div class="tt-col {{ 'heute' if tag == heute }}">
+            {% for b, top, height in eintraege %}
+              {{ block_el(b, labels[b.account_id], top, height, kompakt=true) }}
+            {% endfor %}
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+  {% else %}
+    <p class="tt-leer">Keine Stunden in dieser Woche.</p>
+  {% endif %}
+</div>
+{% endblock %}

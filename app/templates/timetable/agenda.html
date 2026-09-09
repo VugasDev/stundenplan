@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Jetzt{% endblock %}
+{% block content %}
+{% include "timetable/_nav.html" %}
+
+<div class="tt" data-view="agenda">
+  {% if agenda.current %}
+    <div class="ag-karte ag-laeuft tt-{{ agenda.current.status }}">
+      <div class="ag-marke">Läuft gerade</div>
+      <div class="ag-fach">{{ agenda.current.subject }}</div>
+      <div class="ag-meta">
+        bis {{ agenda.current.end_time.strftime('%H:%M') }}
+        {% if agenda.current.room %} · {{ agenda.current.room }}{% endif %}
+        {% if agenda.current.teacher %} · {{ agenda.current.teacher }}{% endif %}
+        · {{ labels[agenda.current.account_id] }}
+      </div>
+    </div>
+  {% endif %}
+
+  {% if agenda.feierabend %}
+    <div class="ag-schluss">Danach ist für heute Schluss.</div>
+  {% endif %}
+
+  {% if agenda.upcoming %}
+    {% set naechster = agenda.upcoming[0] %}
+    <div class="ag-karte ag-naechste tt-{{ naechster.status }}">
+      <div class="ag-marke">{{ 'Danach' if agenda.current else 'Als Nächstes' }}</div>
+      <div class="ag-fach">{{ naechster.subject }}</div>
+      <div class="ag-meta">
+        {{ naechster.start_time.strftime('%H:%M') }}–{{ naechster.end_time.strftime('%H:%M') }}
+        {% if naechster.room %} · {{ naechster.room }}{% endif %}
+        {% if naechster.teacher %} · {{ naechster.teacher }}{% endif %}
+        · {{ labels[naechster.account_id] }}
+      </div>
+      {% if naechster.status == 'substitution' %}<span class="tt-badge">Vertretung</span>{% endif %}
+      {% if naechster.status == 'cancelled' %}<span class="tt-badge">entfällt</span>{% endif %}
+    </div>
+
+    {% if agenda.upcoming|length > 1 %}
+      <div class="ag-rest">
+        <h2>Danach heute noch</h2>
+        {% for b in agenda.upcoming[1:] %}
+          <div class="ag-zeile tt-{{ b.status }}">
+            <span class="ag-zeit">{{ b.start_time.strftime('%H:%M') }}</span>
+            <span class="ag-fach-klein">{{ b.subject }}</span>
+            <span class="ag-meta-klein">
+              {%- if b.room %}{{ b.room }} · {% endif -%}
+              {{ labels[b.account_id] }}
+            </span>
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% elif not agenda.current %}
+    <div class="ag-karte ag-frei">
+      <div class="ag-fach">Heute nichts mehr</div>
+      {% if agenda.next_day %}
+        <div class="ag-meta">
+          Weiter am {{ agenda.next_day.date|wochentag_lang }}, {{ agenda.next_day.date.strftime('%d.%m.') }}
+          um {{ agenda.next_day.start_time.strftime('%H:%M') }}
+          mit {{ agenda.next_day.subject }}
+          {%- if agenda.next_day.room %} in {{ agenda.next_day.room }}{% endif %}
+        </div>
+      {% elif accounts %}
+        <div class="ag-meta">In den nächsten Tagen steht nichts an.</div>
+      {% endif %}
+    </div>
+  {% endif %}
+</div>
+{% endblock %}
