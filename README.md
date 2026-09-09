@@ -30,7 +30,7 @@ ihre Stundenpläne gebündelt (Woche/Agenda). Ein täglicher Job ruft ab.
 
 Bestätigungslinks und Passwort-Reset brauchen einen erreichbaren SMTP-Server —
 ohne den kann sich niemand registrieren oder aussperren lassen. Konfiguriert wird
-er über `MAIL_*` in der `.env`; Absender ist `noreply@example.org`.
+er über `MAIL_*` in der `.env` — inklusive der Absenderadresse.
 
 Fällt der Versand aus, wird der Fehler geloggt statt den Request zu killen: die
 Registrierung bleibt bestehen und die Bestätigungsmail lässt sich über
@@ -72,3 +72,7 @@ des Browsers und ist davon unabhängig.
 ## Tests
 
 `.venv/bin/pytest`
+
+## Lizenz
+
+MIT — siehe [LICENSE](LICENSE).
