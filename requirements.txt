@@ -1,0 +1,12 @@
+Flask
+Flask-SQLAlchemy
+Flask-Login
+Flask-WTF
+Flask-Limiter
+Flask-Mail
+argon2-cffi
+cryptography
+webuntis
+python-dotenv
+email-validator
+pytest
