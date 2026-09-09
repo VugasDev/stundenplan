@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}Stundenplan{% endblock %}
+{% block content %}
+<div class="toggle">
+  <a href="{{ url_for('timetable.index', view='week', week=monday.isoformat()) }}">Woche</a>
+  <a href="{{ url_for('timetable.index', view='agenda', week=monday.isoformat()) }}">Agenda</a>
+  <span style="margin-left:auto">
+    <a href="{{ url_for('timetable.index', view=view, week=prev_week) }}">← vorige</a>
+    <strong>{{ monday.strftime('%d.%m.') }}–{{ sunday.strftime('%d.%m.%Y') }}</strong>
+    <a href="{{ url_for('timetable.index', view=view, week=next_week) }}">nächste →</a>
+  </span>
+  <form method="post" action="{{ url_for('timetable.refresh') }}" style="display:inline">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button type="submit">Jetzt aktualisieren</button>
+  </form>
+</div>
+
+{% if not accounts %}
+  <p>Noch keine WebUntis-Zugänge. <a href="{{ url_for('accounts.add_account') }}">Jetzt hinzufügen</a>.</p>
+{% endif %}
+
+<p>
+  {% for a in accounts %}
+    <span class="lesson" style="background:{{ a.color }}">{{ a.label }}</span>
+  {% endfor %}
+</p>
+
+{% macro lesson_block(l) %}
+  <div class="lesson {{ l.status }}" style="background:{{ colors[l.account_id] }}">
+    <strong>{{ l.subject }}</strong>
+    {% if l.status == 'substitution' %}<span class="badge">Vertretung</span>{% endif %}
+    {% if l.status == 'cancelled' %}<span class="badge">entfällt</span>{% endif %}
+    <div>{{ l.start_time.strftime('%H:%M') }}–{{ l.end_time.strftime('%H:%M') }}</div>
+    {% if l.room %}<div>Raum {{ l.room }}</div>{% endif %}
+    {% if l.teacher %}<div>{{ l.teacher }}</div>{% endif %}
+  </div>
+{% endmacro %}
+
+{% if view == 'agenda' %}
+  {% for l in lessons %}
+    <div style="margin-bottom:.5rem">
+      <small>{{ l.date.strftime('%a %d.%m.') }} — {{ labels[l.account_id] }}</small>
+      {{ lesson_block(l) }}
+    </div>
+  {% else %}
+    <p>Keine Stunden in dieser Woche.</p>
+  {% endfor %}
+{% else %}
+  <div style="overflow-x:auto">
+  <table>
+    <thead><tr><th>Zeit</th>{% for d in days %}<th>{{ d.strftime('%a %d.%m.') }}</th>{% endfor %}</tr></thead>
+    <tbody>
+      {% for slot in slots %}
+      <tr>
+        <td>{{ slot.strftime('%H:%M') }}</td>
+        {% for d in days %}
+        <td>
+          {% for l in grid.get((d, slot), []) %}{{ lesson_block(l) }}{% endfor %}
+        </td>
+        {% endfor %}
+      </tr>
+      {% endfor %}
+      {% if not slots %}<tr><td colspan="8">Keine Stunden in dieser Woche.</td></tr>{% endif %}
+    </tbody>
+  </table>
+  </div>
+{% endif %}
+{% endblock %}
