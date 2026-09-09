@@ -9,7 +9,7 @@ def _bool(name: str, default: bool) -> bool:
 
 
 class Config:
-    SECRET_KEY = os.environ.get("SECRET_KEY", "dev-unsafe-change-me")
+    SECRET_KEY = os.environ.get("SECRET_KEY")
     FERNET_KEY = os.environ.get("FERNET_KEY", "").encode()
     SQLALCHEMY_DATABASE_URI = os.environ.get("DATABASE_URL", "sqlite:///stundenplan.db")
     SQLALCHEMY_TRACK_MODIFICATIONS = False
@@ -33,6 +33,7 @@ class Config:
 
 class TestConfig(Config):
     TESTING = True
+    SECRET_KEY = "test-only-not-a-real-secret"
     SQLALCHEMY_DATABASE_URI = "sqlite://"  # in-memory
     WTF_CSRF_ENABLED = False
     FERNET_KEY = b"dGVzdC1rZXktdGVzdC1rZXktdGVzdC1rZXktMzI9MDA="  # 32-byte urlsafe b64

@@ -8,6 +8,9 @@ def create_app(config_object=None):
     app = Flask(__name__)
     app.config.from_object(config_object or Config)
 
+    if not app.config.get("SECRET_KEY"):
+        raise RuntimeError("SECRET_KEY ist nicht gesetzt — bitte als Umgebungsvariable setzen.")
+
     db.init_app(app)
     login_manager.init_app(app)
     limiter.init_app(app)
