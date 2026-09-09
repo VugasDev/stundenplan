@@ -43,6 +43,10 @@ class Config:
 class TestConfig(Config):
     TESTING = True
     SECRET_KEY = "test-only-not-a-real-secret"
+    # Fest verdrahtet statt aus der Umgebung: sonst faerbt eine vorhandene
+    # .env (etwa REGISTRATION_MODE=invite auf dem Server) auf die Tests ab.
+    REGISTRATION_MODE = "open"
+    INVITE_CODE = ""
     SQLALCHEMY_DATABASE_URI = "sqlite://"  # in-memory
     WTF_CSRF_ENABLED = False
     FERNET_KEY = b"dGVzdC1rZXktdGVzdC1rZXktdGVzdC1rZXktMzI9MDA="  # 32-byte urlsafe b64
