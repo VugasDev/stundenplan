@@ -1,0 +1,9 @@
+[Unit]
+Description=WebUntis Stundenplan taeglicher Abruf
+After=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/stundenplan
+EnvironmentFile=/opt/stundenplan/.env
+ExecStart=/opt/stundenplan/.venv/bin/python -m app.fetch
