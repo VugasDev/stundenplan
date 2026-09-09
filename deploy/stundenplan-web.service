@@ -9,11 +9,15 @@ User=stundenplan
 Group=stundenplan
 WorkingDirectory=/opt/stundenplan
 EnvironmentFile=/opt/stundenplan/.env
+# Ohne Login-Session gibt es kein /run/user/<uid>; gunicorn legt seinen
+# Control-Socket sonst im WorkingDirectory an, wo der Dienst nicht schreiben darf.
+RuntimeDirectory=stundenplan
 # Ein Worker mit Threads: SQLite vertraegt keine parallelen Schreiber, und der
 # In-Memory-Rate-Limit-Store zaehlt nur innerhalb eines Prozesses korrekt.
 ExecStart=/opt/stundenplan/.venv/bin/gunicorn \
     --workers 1 --threads 4 --timeout 120 \
     --bind 0.0.0.0:8000 \
+    --control-socket /run/stundenplan/gunicorn.ctl \
     --access-logfile - --error-logfile - \
     "app:create_app()"
 Restart=on-failure
