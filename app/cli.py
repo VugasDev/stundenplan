@@ -20,3 +20,64 @@ def register_cli(app):
                 today=local_today(current_app.config["TIMEZONE"]),
                 window_days=current_app.config["FETCH_WINDOW_DAYS"])
         click.echo("Abruf abgeschlossen.")
+
+    @app.cli.command("migrate-to-classes")
+    def migrate_to_classes():
+        """Ueberfuehrt bestehende Zugaenge in Klassenquellen."""
+        db.create_all()
+        zuordnung = migrate_accounts_to_classes()
+        click.echo(f"{len(zuordnung)} Zugang/Zugänge überführt.")
+
+
+def migrate_accounts_to_classes(lister=None, cipher=None) -> dict:
+    """Ueberfuehrt bestehende Konten in Klassenquellen samt Mitgliedschaft.
+
+    Zugeordnet wird nur, wenn der Anzeigename des Kontos exakt einem Klassennamen
+    der Schule entspricht. Der Anzeigename ist frei gewaehlt ("KMS" etwa ist keine
+    Klasse) — geraten wird deshalb nicht, solche Konten bleiben stehen und werden
+    gemeldet.
+    """
+    from app.models import WebUntisAccount, SchoolClass, Membership
+    from app.webuntis_client import fetch_classes
+
+    lister = lister or fetch_classes
+    cipher = cipher or current_app.extensions["cipher"]
+    zuordnung = {}
+
+    for acc in db.session.query(WebUntisAccount).all():
+        credentials = {"server_url": acc.server_url, "school": acc.school,
+                       "username": acc.username,
+                       "password": cipher.decrypt(acc.password_encrypted)}
+        try:
+            klassen = lister(credentials)
+        except Exception as exc:
+            click.echo(f"  {acc.label}: Klassenliste nicht abrufbar ({type(exc).__name__})")
+            continue
+
+        treffer = [k for k in klassen if k.name.upper() == acc.label.upper()]
+        if not treffer:
+            click.echo(f"  {acc.label}: kein Klassenname passt — bitte in der "
+                       f"Weboberfläche unter 'Klasse hinzufügen' nachholen")
+            continue
+
+        ziel = treffer[0]
+        school_class = (db.session.query(SchoolClass)
+                        .filter_by(server_url=acc.server_url, school=acc.school,
+                                   untis_class_id=ziel.id).first())
+        if school_class is None:
+            school_class = SchoolClass(
+                server_url=acc.server_url, school=acc.school,
+                untis_class_id=ziel.id, name=ziel.name,
+                username=acc.username, password_encrypted=acc.password_encrypted,
+                donor_user_id=acc.user_id)
+            db.session.add(school_class)
+            db.session.flush()
+
+        vorhanden = (db.session.query(Membership)
+                     .filter_by(user_id=acc.user_id, class_id=school_class.id).first())
+        if vorhanden is None:
+            db.session.add(Membership(user_id=acc.user_id, class_id=school_class.id))
+        zuordnung[acc.id] = ziel.id
+
+    db.session.commit()
+    return zuordnung
