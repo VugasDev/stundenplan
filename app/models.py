@@ -22,10 +22,6 @@ class User(UserMixin, db.Model):
     confirmed = db.Column(db.Boolean, nullable=False, default=False)
     created_at = db.Column(db.DateTime, nullable=False, default=utcnow)
 
-    accounts = db.relationship(
-        "WebUntisAccount", back_populates="user",
-        cascade="all, delete-orphan",
-    )
     memberships = db.relationship(
         "Membership", back_populates="user", cascade="all, delete-orphan",
     )
@@ -38,22 +34,6 @@ class User(UserMixin, db.Model):
             return _hasher.verify(self.password_hash, password)
         except (VerifyMismatchError, VerificationError, InvalidHashError):
             return False
-
-
-class WebUntisAccount(db.Model):
-    __tablename__ = "webuntis_accounts"
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
-    label = db.Column(db.String(100), nullable=False)
-    color = db.Column(db.String(9), nullable=False, default="#3b82f6")
-    server_url = db.Column(db.String(255), nullable=False)
-    school = db.Column(db.String(255), nullable=False)
-    username = db.Column(db.String(255), nullable=False)
-    password_encrypted = db.Column(db.Text, nullable=False)
-    last_fetch_at = db.Column(db.DateTime, nullable=True)
-    last_fetch_status = db.Column(db.String(255), nullable=True)
-
-    user = db.relationship("User", back_populates="accounts")
 
 
 class SchoolClass(db.Model):

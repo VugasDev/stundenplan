@@ -1,6 +1,6 @@
 import datetime
 from app.extensions import db
-from app.models import User, WebUntisAccount, Lesson
+from app.models import User, Lesson
 
 
 def test_user_password_hashing(app):
@@ -12,23 +12,6 @@ def test_user_password_hashing(app):
     assert u.check_password("geheim") is True
     assert u.check_password("falsch") is False
     assert u.confirmed is False
-
-
-def test_webuntis_account_gehoert_zum_user(app):
-    # Lesson haengt seit dem klassenbasierten Modell an SchoolClass, nicht mehr
-    # an WebUntisAccount (siehe test_stunden_haengen_an_der_klasse_nicht_an_der_person).
-    u = User(email="a@b.de")
-    u.set_password("x")
-    db.session.add(u)
-    db.session.commit()
-    acc = WebUntisAccount(
-        user_id=u.id, label="BK", color="#ff0000",
-        server_url="xyz.webuntis.com", school="s", username="u",
-        password_encrypted="enc",
-    )
-    db.session.add(acc)
-    db.session.commit()
-    assert u.accounts[0].label == "BK"
 
 
 def test_klassenquelle_ohne_spende_hat_keine_zugangsdaten(app):
