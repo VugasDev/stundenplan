@@ -12,7 +12,7 @@ from dataclasses import dataclass
 @dataclass
 class Block:
     """Eine zusammenhaengende Unterrichtseinheit, ggf. aus mehreren Stunden."""
-    account_id: int
+    class_id: int
     date: datetime.date
     start_time: datetime.time
     end_time: datetime.time
@@ -25,7 +25,7 @@ class Block:
 
 def _identity(lesson):
     """Alles, was gleich sein muss, damit zwei Stunden ein Block werden."""
-    return (lesson.account_id, lesson.date, lesson.subject, lesson.room,
+    return (lesson.class_id, lesson.date, lesson.subject, lesson.room,
             lesson.teacher, lesson.status)
 
 
@@ -35,19 +35,19 @@ def merge_lessons(lessons) -> list[Block]:
     Zusammengefasst wird nur, was lueckenlos anschliesst — eine Pause von auch
     nur fuenf Minuten trennt zwei Bloecke.
     """
-    ordered = sorted(lessons, key=lambda l: (l.date, l.start_time, l.account_id))
+    ordered = sorted(lessons, key=lambda l: (l.date, l.start_time, l.class_id))
     blocks: list[Block] = []
     for lesson in ordered:
         last = blocks[-1] if blocks else None
         if (last is not None
-                and _identity(lesson) == (last.account_id, last.date, last.subject,
+                and _identity(lesson) == (last.class_id, last.date, last.subject,
                                           last.room, last.teacher, last.status)
                 and last.end_time == lesson.start_time):
             last.end_time = lesson.end_time
             last.units += 1
             continue
         blocks.append(Block(
-            account_id=lesson.account_id, date=lesson.date,
+            class_id=lesson.class_id, date=lesson.date,
             start_time=lesson.start_time, end_time=lesson.end_time,
             subject=lesson.subject, room=lesson.room, teacher=lesson.teacher,
             status=lesson.status, units=1,

@@ -29,7 +29,7 @@
         {% for tag, eintraege in spalten %}
           <div class="tt-col {{ 'heute' if tag == heute }}">
             {% for b, top, height in eintraege %}
-              {{ block_el(b, labels[b.account_id], top, height, kompakt=true) }}
+              {{ block_el(b, labels[b.class_id], top, height, kompakt=true) }}
             {% endfor %}
           </div>
         {% endfor %}
