@@ -59,8 +59,10 @@ def fetch_class(school_class, cipher, today=None, window_days=21,
         school_class.last_fetch_status = (
             f"{type(exc).__name__}: {msg}" if msg else type(exc).__name__)[:255]
     finally:
-        # Ortszeit, nicht UTC: may_fetch_automatically vergleicht gegen
-        # local_now() und braucht dieselbe Skala, sonst waere der Vergleich
+        # Im finally, damit auch ein Fehlschlag den Zeitstempel setzt — sonst
+        # wuerde eine dauerhaft fehlschlagende Klasse bei jedem Automatiklauf
+        # erneut versucht. Ortszeit, nicht UTC: may_fetch_automatically vergleicht
+        # gegen local_now() und braucht dieselbe Skala, sonst waere der Vergleich
         # um die Zeitzonenverschiebung falsch.
         school_class.last_fetch_at = local_now()
         db.session.commit()

@@ -104,6 +104,11 @@ def index():
 def refresh():
     cipher = current_app.extensions["cipher"]
     for account in _own_accounts():
+        # ACHTUNG: Diese Route arbeitet noch mit Konten statt Klassen (WebUntisAccount
+        # statt SchoolClass). Der Aufruf wurde in Aufgabe 5 nur so weit angepasst, dass
+        # der Import wieder traegt (fetch_account existiert nicht mehr) — fachlich ist
+        # das falsch und wuerde hier zur Laufzeit mit AttributeError abstuerzen. Die
+        # Umstellung dieser Ansicht auf Klassen gehoert zu Aufgabe 7.
         fetch_class(account, cipher)
     flash("Stundenpläne aktualisiert.", "success")
     return redirect(request.referrer or url_for("timetable.index"))
