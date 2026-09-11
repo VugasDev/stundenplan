@@ -7,7 +7,7 @@ from flask_login import login_required, current_user
 
 from app.extensions import db, limiter
 from app.models import WebUntisAccount, Lesson
-from app.fetch import fetch_account
+from app.fetch import fetch_class
 from app.blocks import merge_lessons, build_axis, agenda_view, axis_payload
 from app.zeit import local_now, local_today
 
@@ -104,6 +104,6 @@ def index():
 def refresh():
     cipher = current_app.extensions["cipher"]
     for account in _own_accounts():
-        fetch_account(account, cipher)
+        fetch_class(account, cipher)
     flash("Stundenpläne aktualisiert.", "success")
     return redirect(request.referrer or url_for("timetable.index"))

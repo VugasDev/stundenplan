@@ -1,134 +1,99 @@
 import datetime
-from cryptography.fernet import Fernet
 from app.extensions import db
-from app.crypto import CredentialCipher
-from app.models import User, WebUntisAccount, Lesson
+from app.models import SchoolClass, Lesson
+from app.fetch import fetch_class, run_all, purge_outside_window
 from app.lessons import RawLesson
-from app import fetch
 
 
-def _make_account(cipher):
-    u = User(email="a@b.de")
-    u.set_password("x")
-    db.session.add(u)
-    db.session.commit()
-    acc = WebUntisAccount(
-        user_id=u.id, label="BK", color="#fff",
-        server_url="s", school="sch", username="u",
-        password_encrypted=cipher.encrypt("geheim"),
-    )
-    db.session.add(acc)
-    db.session.commit()
-    return acc
+def _klasse(**kw):
+    vorgabe = dict(server_url="s", school="s", untis_class_id=7, name="FI42",
+                   username="u", password_encrypted="enc")
+    vorgabe.update(kw)
+    k = SchoolClass(**vorgabe)
+    db.session.add(k); db.session.commit()
+    return k
 
 
-def test_fetch_account_replaces_window(app):
-    cipher = CredentialCipher(Fernet.generate_key())
-    acc = _make_account(cipher)
-    today = datetime.date(2026, 9, 10)
-
-    # Alt-Stunde im Fenster, die verschwinden muss
-    db.session.add(Lesson(account_id=acc.id, date=today, start_time=datetime.time(7, 0),
-                          end_time=datetime.time(7, 45), subject="ALT", room="", teacher="",
-                          status="normal"))
-    db.session.commit()
-
-    d = datetime.datetime(2026, 9, 11, 8, 0)
-    raw = [RawLesson(d, d + datetime.timedelta(minutes=45), "NEU", "C1", "GS", None)]
-
-    fetch.fetch_account(acc, cipher, today=today, fetcher=lambda creds, s, e: raw)
-
-    subjects = {l.subject for l in db.session.query(Lesson).all()}
-    assert subjects == {"NEU"}
-    assert acc.last_fetch_status == "ok"
-    assert acc.last_fetch_at is not None
+class _Cipher:
+    def decrypt(self, token): return "geheim"
 
 
-def test_fetch_account_passes_decrypted_password(app):
-    cipher = CredentialCipher(Fernet.generate_key())
-    acc = _make_account(cipher)
-    captured = {}
+def _raw(tag="2026-09-16", start="07:30", end="08:15", subject="ITD"):
+    d = datetime.date.fromisoformat(tag)
+    return RawLesson(
+        start=datetime.datetime.combine(d, datetime.time.fromisoformat(start)),
+        end=datetime.datetime.combine(d, datetime.time.fromisoformat(end)),
+        subject=subject, room="K204", teacher="MUE", code=None)
 
-    def fake_fetch(creds, start, end):
-        captured.update(creds)
+
+def test_abruf_speichert_die_stunden_an_der_klasse(app):
+    k = _klasse()
+    fetch_class(k, _Cipher(), today=datetime.date(2026, 9, 16),
+                fetcher=lambda c, kid, s, e: [_raw()])
+    assert len(k.lessons) == 1
+    assert k.last_fetch_status == "ok"
+
+
+def test_abruf_uebergibt_die_untis_klassen_id(app):
+    k = _klasse(untis_class_id=99)
+    gesehen = {}
+    def fetcher(credentials, untis_class_id, start, end):
+        gesehen["id"] = untis_class_id
         return []
-
-    fetch.fetch_account(acc, cipher, today=datetime.date(2026, 9, 10), fetcher=fake_fetch)
-    assert captured["password"] == "geheim"
-    assert captured["username"] == "u"
+    fetch_class(k, _Cipher(), today=datetime.date(2026, 9, 16), fetcher=fetcher)
+    assert gesehen["id"] == 99
 
 
-def test_fetch_account_records_error(app):
-    cipher = CredentialCipher(Fernet.generate_key())
-    acc = _make_account(cipher)
-
-    def boom(creds, start, end):
-        raise RuntimeError("Passwort abgelehnt")
-
-    fetch.fetch_account(acc, cipher, today=datetime.date(2026, 9, 10), fetcher=boom)
-    assert "Passwort abgelehnt" in acc.last_fetch_status
+def test_klasse_ohne_spende_wird_nicht_abgerufen(app):
+    k = _klasse(username=None, password_encrypted=None)
+    def fetcher(*a, **kw):
+        raise AssertionError("darf nicht aufgerufen werden")
+    assert fetch_class(k, _Cipher(), today=datetime.date(2026, 9, 16),
+                       fetcher=fetcher) is False
 
 
-def test_fetch_account_isolates_decrypt_error(app):
-    cipher = CredentialCipher(Fernet.generate_key())
-    acc = _make_account(cipher)
-    acc.password_encrypted = "nicht-entschluesselbar"
+def test_fehler_bleibt_an_der_klasse_haengen_ohne_andere_zu_stoeren(app):
+    k = _klasse()
+    def fetcher(*a, **kw):
+        raise RuntimeError("WebUntis weg")
+    fetch_class(k, _Cipher(), today=datetime.date(2026, 9, 16), fetcher=fetcher)
+    assert "RuntimeError" in k.last_fetch_status
+    assert k.last_fetch_at is not None
+
+
+def test_stunden_ausserhalb_des_fensters_werden_geloescht(app):
+    k = _klasse()
+    heute = datetime.date(2026, 9, 16)
+    db.session.add_all([
+        Lesson(class_id=k.id, date=heute - datetime.timedelta(days=1),
+               start_time=datetime.time(8), end_time=datetime.time(9),
+               subject="ALT", room="", teacher="", status="normal"),
+        Lesson(class_id=k.id, date=heute + datetime.timedelta(days=40),
+               start_time=datetime.time(8), end_time=datetime.time(9),
+               subject="WEIT", room="", teacher="", status="normal"),
+    ])
     db.session.commit()
-
-    calls = []
-
-    def must_not_be_called(creds, start, end):
-        calls.append(creds)
-        return []
-
-    fetch.fetch_account(acc, cipher, today=datetime.date(2026, 9, 10), fetcher=must_not_be_called)
-
-    assert calls == []
-    assert acc.last_fetch_status is not None
-    assert acc.last_fetch_status != "ok"
-
-
-def test_fetch_account_keeps_lessons_outside_window(app):
-    cipher = CredentialCipher(Fernet.generate_key())
-    acc = _make_account(cipher)
-    today = datetime.date(2026, 9, 10)
-    window_days = 21
-
-    before = Lesson(account_id=acc.id, date=today - datetime.timedelta(days=1),
-                    start_time=datetime.time(7, 0), end_time=datetime.time(7, 45),
-                    subject="VORHER", room="", teacher="", status="normal")
-    after = Lesson(account_id=acc.id, date=today + datetime.timedelta(days=window_days + 1),
-                   start_time=datetime.time(7, 0), end_time=datetime.time(7, 45),
-                   subject="NACHHER", room="", teacher="", status="normal")
-    db.session.add_all([before, after])
+    geloescht = purge_outside_window(k, heute, 21)
     db.session.commit()
-
-    d = datetime.datetime(2026, 9, 11, 8, 0)
-    raw = [RawLesson(d, d + datetime.timedelta(minutes=45), "IM-FENSTER", "C1", "GS", None)]
-
-    fetch.fetch_account(acc, cipher, today=today, window_days=window_days, fetcher=lambda creds, s, e: raw)
-
-    subjects = {l.subject for l in db.session.query(Lesson).all()}
-    assert subjects == {"VORHER", "NACHHER", "IM-FENSTER"}
-    assert acc.last_fetch_status == "ok"
+    assert geloescht == 2
+    assert k.lessons == []
 
 
-def test_run_all_isolates_failures(app):
-    cipher = CredentialCipher(Fernet.generate_key())
-    acc1 = _make_account(cipher)
-    u2 = User(email="c@d.de"); u2.set_password("x"); db.session.add(u2); db.session.commit()
-    acc2 = WebUntisAccount(user_id=u2.id, label="X", color="#fff", server_url="s",
-                           school="sch", username="u2", password_encrypted=cipher.encrypt("p"))
-    db.session.add(acc2); db.session.commit()
+def test_automatiklauf_ueberspringt_klassen_innerhalb_des_intervalls(app):
+    k = _klasse()
+    k.last_fetch_at = datetime.datetime(2026, 9, 16, 10, 0)
+    db.session.commit()
+    anzahl = run_all(_Cipher(), now=datetime.datetime(2026, 9, 16, 10, 30),
+                     today=datetime.date(2026, 9, 16),
+                     fetcher=lambda c, kid, s, e: [_raw()])
+    assert anzahl == 0
 
-    d = datetime.datetime(2026, 9, 11, 8, 0)
 
-    def selective(creds, start, end):
-        if creds["username"] == "u2":
-            raise RuntimeError("kaputt")
-        return [RawLesson(d, d + datetime.timedelta(minutes=45), "OK", "", "", None)]
-
-    fetch.run_all(cipher, today=datetime.date(2026, 9, 10), fetcher=selective)
-
-    assert acc1.last_fetch_status == "ok"
-    assert "kaputt" in acc2.last_fetch_status
+def test_automatiklauf_holt_faellige_klassen(app):
+    k = _klasse()
+    k.last_fetch_at = datetime.datetime(2026, 9, 16, 8, 0)
+    db.session.commit()
+    anzahl = run_all(_Cipher(), now=datetime.datetime(2026, 9, 16, 10, 0),
+                     today=datetime.date(2026, 9, 16),
+                     fetcher=lambda c, kid, s, e: [_raw()])
+    assert anzahl == 1
