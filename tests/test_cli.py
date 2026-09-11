@@ -57,3 +57,64 @@ def test_migration_ueberspringt_konten_ohne_passenden_klassennamen(app):
     )
     assert zuordnung == {}                        # nichts geraten
     assert db.session.query(SchoolClass).count() == 0
+
+
+def test_migration_ueberlebt_entschluesselungsfehler_bei_einem_konto(app):
+    from app.models import User, WebUntisAccount, SchoolClass
+    from app.cli import migrate_accounts_to_classes
+    from app.webuntis_client import UntisClass
+    from app.extensions import db
+
+    u = User(email="a@b.de"); u.set_password("geheim123")
+    db.session.add(u); db.session.commit()
+    defekt = WebUntisAccount(user_id=u.id, label="FI42", color="#fff",
+                             server_url="s", school="s", username="u1",
+                             password_encrypted="defekt")
+    ok = WebUntisAccount(user_id=u.id, label="FIT61", color="#fff",
+                         server_url="s", school="s", username="u2",
+                         password_encrypted="enc")
+    db.session.add_all([defekt, ok]); db.session.commit()
+
+    def decrypt(self, token):
+        if token == "defekt":
+            raise ValueError("kaputter Chiffretext")
+        return "geheim"
+
+    zuordnung = migrate_accounts_to_classes(
+        lister=lambda credentials: [UntisClass(7, "FI42"), UntisClass(9, "FIT61")],
+        cipher=type("C", (), {"decrypt": decrypt})(),
+    )
+    # Das defekte Konto wird nicht zugeordnet ...
+    assert defekt.id not in zuordnung
+    # ... aber das zweite Konto wird trotzdem migriert und bleibt in der DB.
+    assert zuordnung == {ok.id: 9}
+    k = db.session.query(SchoolClass).one()
+    assert (k.untis_class_id, k.name) == (9, "FIT61")
+
+
+def test_migration_ist_mehrfach_ausfuehrbar_ohne_doppel_eintraege(app):
+    from app.models import User, WebUntisAccount, SchoolClass, Membership
+    from app.cli import migrate_accounts_to_classes
+    from app.webuntis_client import UntisClass
+    from app.extensions import db
+
+    u = User(email="a@b.de"); u.set_password("geheim123")
+    db.session.add(u); db.session.commit()
+    acc = WebUntisAccount(user_id=u.id, label="FI42", color="#fff",
+                          server_url="s.webuntis.com", school="s",
+                          username="schueler", password_encrypted="enc")
+    db.session.add(acc); db.session.commit()
+
+    cipher = type("C", (), {"decrypt": lambda self, t: "geheim"})()
+    lister = lambda credentials: [UntisClass(7, "FI42")]
+
+    migrate_accounts_to_classes(lister=lister, cipher=cipher)
+    erster_lauf = db.session.query(SchoolClass).one()
+    donor_nach_erstem_lauf = erster_lauf.donor_user_id
+
+    migrate_accounts_to_classes(lister=lister, cipher=cipher)
+
+    assert db.session.query(SchoolClass).count() == 1
+    assert db.session.query(Membership).count() == 1
+    k = db.session.query(SchoolClass).one()
+    assert k.donor_user_id == donor_nach_erstem_lauf

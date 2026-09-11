@@ -45,9 +45,14 @@ def migrate_accounts_to_classes(lister=None, cipher=None) -> dict:
     zuordnung = {}
 
     for acc in db.session.query(WebUntisAccount).all():
+        try:
+            passwort = cipher.decrypt(acc.password_encrypted)
+        except Exception as exc:
+            click.echo(f"  {acc.label}: Zugangsdaten nicht entschlüsselbar ({type(exc).__name__})")
+            continue
+
         credentials = {"server_url": acc.server_url, "school": acc.school,
-                       "username": acc.username,
-                       "password": cipher.decrypt(acc.password_encrypted)}
+                       "username": acc.username, "password": passwort}
         try:
             klassen = lister(credentials)
         except Exception as exc:
@@ -78,6 +83,8 @@ def migrate_accounts_to_classes(lister=None, cipher=None) -> dict:
         if vorhanden is None:
             db.session.add(Membership(user_id=acc.user_id, class_id=school_class.id))
         zuordnung[acc.id] = ziel.id
+        # Sofort sichern, damit ein Fehler bei einem spaeteren Konto den
+        # Fortschritt dieses Kontos nicht zunichtemacht.
+        db.session.commit()
 
-    db.session.commit()
     return zuordnung
