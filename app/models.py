@@ -26,6 +26,9 @@ class User(UserMixin, db.Model):
         "WebUntisAccount", back_populates="user",
         cascade="all, delete-orphan",
     )
+    memberships = db.relationship(
+        "Membership", back_populates="user", cascade="all, delete-orphan",
+    )
 
     def set_password(self, password: str) -> None:
         self.password_hash = _hasher.hash(password)
@@ -51,16 +54,63 @@ class WebUntisAccount(db.Model):
     last_fetch_status = db.Column(db.String(255), nullable=True)
 
     user = db.relationship("User", back_populates="accounts")
-    lessons = db.relationship(
-        "Lesson", back_populates="account",
-        cascade="all, delete-orphan",
+
+
+class SchoolClass(db.Model):
+    """Eine Klasse als Abrufquelle — eine Zeile je Klasse, nicht je Person."""
+    __tablename__ = "school_classes"
+    id = db.Column(db.Integer, primary_key=True)
+    server_url = db.Column(db.String(255), nullable=False)
+    school = db.Column(db.String(255), nullable=False)
+    untis_class_id = db.Column(db.Integer, nullable=False)
+    name = db.Column(db.String(100), nullable=False)
+
+    # Zugangsdaten des Spenders; leer, solange niemand gespendet hat.
+    username = db.Column(db.String(255), nullable=True)
+    password_encrypted = db.Column(db.Text, nullable=True)
+    donor_user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+
+    last_fetch_at = db.Column(db.DateTime, nullable=True)
+    last_fetch_status = db.Column(db.String(255), nullable=True)
+
+    __table_args__ = (
+        db.UniqueConstraint("server_url", "school", "untis_class_id",
+                            name="uq_klasse_je_schule"),
+    )
+
+    lessons = db.relationship("Lesson", back_populates="school_class",
+                              cascade="all, delete-orphan")
+    memberships = db.relationship("Membership", back_populates="school_class",
+                                  cascade="all, delete-orphan")
+
+    @property
+    def has_source(self) -> bool:
+        """Kann diese Klasse abgerufen werden?"""
+        return bool(self.password_encrypted)
+
+
+class Membership(db.Model):
+    """Belegte Zugehoerigkeit einer Person zu einer Klasse."""
+    __tablename__ = "memberships"
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
+    class_id = db.Column(db.Integer, db.ForeignKey("school_classes.id"),
+                         nullable=False, index=True)
+    verified_at = db.Column(db.DateTime, nullable=False, default=utcnow)
+
+    user = db.relationship("User", back_populates="memberships")
+    school_class = db.relationship("SchoolClass", back_populates="memberships")
+
+    __table_args__ = (
+        db.UniqueConstraint("user_id", "class_id", name="uq_eine_mitgliedschaft"),
     )
 
 
 class Lesson(db.Model):
     __tablename__ = "lessons"
     id = db.Column(db.Integer, primary_key=True)
-    account_id = db.Column(db.Integer, db.ForeignKey("webuntis_accounts.id"), nullable=False, index=True)
+    class_id = db.Column(db.Integer, db.ForeignKey("school_classes.id"),
+                         nullable=False, index=True)
     date = db.Column(db.Date, nullable=False, index=True)
     start_time = db.Column(db.Time, nullable=False)
     end_time = db.Column(db.Time, nullable=False)
@@ -70,4 +120,4 @@ class Lesson(db.Model):
     status = db.Column(db.String(20), nullable=False, default="normal")
     note = db.Column(db.String(255), nullable=False, default="")
 
-    account = db.relationship("WebUntisAccount", back_populates="lessons")
+    school_class = db.relationship("SchoolClass", back_populates="lessons")
