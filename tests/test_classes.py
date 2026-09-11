@@ -1,3 +1,4 @@
+import re
 import datetime
 import pytest
 
@@ -20,6 +21,18 @@ def _patch_verify(monkeypatch, klassen=(UntisClass(7, "FI42"),), ok=True):
                         lambda *a, **kw: (ok, list(klassen), "" if ok else "Fehler"))
 
 
+def _join_und_token(client, server_url="s.webuntis.com", school="s",
+                    username="schueler", password="geheim"):
+    """Durchläuft /classes/join wie ein echter Nutzer und liefert das darin
+    ausgestellte Token für die anschliessende /classes/choose-Anfrage."""
+    resp = client.post("/classes/join", data={
+        "server_url": server_url, "school": school,
+        "username": username, "password": password}, follow_redirects=True)
+    match = re.search(rb'name="token" value="([^"]+)"', resp.data)
+    assert match is not None, "Token nicht im choose.html gefunden"
+    return match.group(1).decode()
+
+
 def test_beitritt_zeigt_die_klassen_zur_auswahl(app, client, user, monkeypatch):
     _patch_verify(monkeypatch)
     resp = client.post("/classes/join", data={
@@ -40,10 +53,10 @@ def test_falsche_zugangsdaten_legen_nichts_an(app, client, user, monkeypatch):
 
 def test_beitritt_ohne_spende_speichert_kein_passwort(app, client, user, monkeypatch):
     _patch_verify(monkeypatch)
+    token = _join_und_token(client)
     client.post("/classes/choose", data={
-        "server_url": "s.webuntis.com", "school": "s", "username": "schueler",
-        "password": "geheim", "untis_class_id": "7", "name": "FI42",
-        "spenden": ""}, follow_redirects=True)
+        "token": token, "password": "geheim", "untis_class_id": "7",
+        "name": "FI42", "spenden": ""}, follow_redirects=True)
     k = db.session.query(SchoolClass).one()
     assert k.password_encrypted is None
     assert k.has_source is False
@@ -52,10 +65,10 @@ def test_beitritt_ohne_spende_speichert_kein_passwort(app, client, user, monkeyp
 
 def test_spende_speichert_die_zugangsdaten_verschluesselt(app, client, user, monkeypatch):
     _patch_verify(monkeypatch)
+    token = _join_und_token(client)
     client.post("/classes/choose", data={
-        "server_url": "s.webuntis.com", "school": "s", "username": "schueler",
-        "password": "geheim", "untis_class_id": "7", "name": "FI42",
-        "spenden": "ja"}, follow_redirects=True)
+        "token": token, "password": "geheim", "untis_class_id": "7",
+        "name": "FI42", "spenden": "ja"}, follow_redirects=True)
     k = db.session.query(SchoolClass).one()
     assert k.has_source is True
     assert k.password_encrypted != "geheim"       # verschluesselt, nicht im Klartext
@@ -65,18 +78,18 @@ def test_spende_speichert_die_zugangsdaten_verschluesselt(app, client, user, mon
 
 def test_zweiter_beitritt_nutzt_die_vorhandene_quelle(app, client, user, monkeypatch):
     _patch_verify(monkeypatch)
+    token = _join_und_token(client, username="erster", password="geheim")
     client.post("/classes/choose", data={
-        "server_url": "s.webuntis.com", "school": "s", "username": "erster",
-        "password": "geheim", "untis_class_id": "7", "name": "FI42",
-        "spenden": "ja"}, follow_redirects=True)
+        "token": token, "password": "geheim", "untis_class_id": "7",
+        "name": "FI42", "spenden": "ja"}, follow_redirects=True)
     zweiter = User(email="c@d.de", confirmed=True); zweiter.set_password("geheim123")
     db.session.add(zweiter); db.session.commit()
     client.post("/logout")
     client.post("/login", data={"email": "c@d.de", "password": "geheim123"})
+    token2 = _join_und_token(client, username="zweiter", password="anderes")
     client.post("/classes/choose", data={
-        "server_url": "s.webuntis.com", "school": "s", "username": "zweiter",
-        "password": "anderes", "untis_class_id": "7", "name": "FI42",
-        "spenden": ""}, follow_redirects=True)
+        "token": token2, "password": "anderes", "untis_class_id": "7",
+        "name": "FI42", "spenden": ""}, follow_redirects=True)
     assert db.session.query(SchoolClass).count() == 1      # keine zweite Quelle
     assert db.session.query(Membership).count() == 2
     k = db.session.query(SchoolClass).one()
@@ -85,10 +98,10 @@ def test_zweiter_beitritt_nutzt_die_vorhandene_quelle(app, client, user, monkeyp
 
 def test_widerruf_loescht_die_zugangsdaten(app, client, user, monkeypatch):
     _patch_verify(monkeypatch)
+    token = _join_und_token(client)
     client.post("/classes/choose", data={
-        "server_url": "s.webuntis.com", "school": "s", "username": "schueler",
-        "password": "geheim", "untis_class_id": "7", "name": "FI42",
-        "spenden": "ja"}, follow_redirects=True)
+        "token": token, "password": "geheim", "untis_class_id": "7",
+        "name": "FI42", "spenden": "ja"}, follow_redirects=True)
     k = db.session.query(SchoolClass).one()
     client.post(f"/classes/{k.id}/revoke", follow_redirects=True)
     k = db.session.get(SchoolClass, k.id)
@@ -99,10 +112,10 @@ def test_widerruf_loescht_die_zugangsdaten(app, client, user, monkeypatch):
 
 def test_nur_der_spender_darf_widerrufen(app, client, user, monkeypatch):
     _patch_verify(monkeypatch)
+    token = _join_und_token(client)
     client.post("/classes/choose", data={
-        "server_url": "s.webuntis.com", "school": "s", "username": "schueler",
-        "password": "geheim", "untis_class_id": "7", "name": "FI42",
-        "spenden": "ja"}, follow_redirects=True)
+        "token": token, "password": "geheim", "untis_class_id": "7",
+        "name": "FI42", "spenden": "ja"}, follow_redirects=True)
     k = db.session.query(SchoolClass).one()
     fremder = User(email="x@y.de", confirmed=True); fremder.set_password("geheim123")
     db.session.add(fremder); db.session.commit()
@@ -111,3 +124,64 @@ def test_nur_der_spender_darf_widerrufen(app, client, user, monkeypatch):
     resp = client.post(f"/classes/{k.id}/revoke")
     assert resp.status_code == 404
     assert db.session.get(SchoolClass, k.id).password_encrypted is not None
+
+
+def test_choose_ohne_gueltiges_token_legt_nichts_an(app, client, user, monkeypatch):
+    _patch_verify(monkeypatch)
+    client.post("/classes/choose", data={
+        "server_url": "erfunden.webuntis.com", "school": "erfunden",
+        "username": "boese", "password": "boese",
+        "untis_class_id": "1", "name": "ERFUNDEN",
+        "spenden": "ja"}, follow_redirects=True)
+    assert db.session.query(SchoolClass).count() == 0
+    assert db.session.query(Membership).count() == 0
+
+
+def test_token_einer_schule_erlaubt_keinen_beitritt_bei_anderer_schule(
+        app, client, user, monkeypatch):
+    # Klasse mit derselben untis_class_id existiert bereits unter Schule B —
+    # ein für Schule A ausgestelltes Token darf trotzdem nicht auf sie zugreifen,
+    # weil choose() Server/Schule ausschliesslich dem Token entnimmt, nie dem
+    # Formular.
+    bestehende = SchoolClass(server_url="b.webuntis.com", school="schule-b",
+                             untis_class_id=7, name="FI42-B",
+                             username="fremdspender",
+                             password_encrypted="verschluesselt-fremd")
+    db.session.add(bestehende); db.session.commit()
+
+    _patch_verify(monkeypatch)
+    token = _join_und_token(client, server_url="a.webuntis.com", school="schule-a")
+    client.post("/classes/choose", data={
+        "token": token, "password": "geheim", "untis_class_id": "7",
+        "name": "FI42", "spenden": "ja"}, follow_redirects=True)
+
+    # Es muss eine zweite, eigene Klasse für Schule A entstanden sein — die
+    # Spende der Schule B darf weder gelesen noch überschrieben worden sein.
+    assert db.session.query(SchoolClass).count() == 2
+    klasse_a = (db.session.query(SchoolClass)
+                .filter_by(server_url="a.webuntis.com", school="schule-a").one())
+    assert klasse_a.username == "schueler"
+    klasse_b = db.session.get(SchoolClass, bestehende.id)
+    assert klasse_b.username == "fremdspender"
+
+
+def test_nicht_verifizierte_klassen_id_wird_abgewiesen(app, client, user, monkeypatch):
+    _patch_verify(monkeypatch, klassen=(UntisClass(7, "FI42"),))
+    token = _join_und_token(client)
+    client.post("/classes/choose", data={
+        "token": token, "password": "geheim", "untis_class_id": "42",
+        "name": "FREMD", "spenden": "ja"}, follow_redirects=True)
+    assert db.session.query(SchoolClass).count() == 0
+    assert db.session.query(Membership).count() == 0
+
+
+def test_abgelaufenes_token_wird_abgewiesen(app, client, user, monkeypatch):
+    _patch_verify(monkeypatch)
+    import app.classes.routes as routes
+    token = _join_und_token(client)
+    monkeypatch.setattr(routes, "_JOIN_MAX_AGE_SECONDS", -1)
+    resp = client.post("/classes/choose", data={
+        "token": token, "password": "geheim", "untis_class_id": "7",
+        "name": "FI42", "spenden": "ja"}, follow_redirects=True)
+    assert db.session.query(SchoolClass).count() == 0
+    assert resp.status_code == 200

@@ -4,9 +4,7 @@
 <h1>Welche Klasse ist deine?</h1>
 <form method="post" action="{{ url_for('classes.choose') }}" class="card" autocomplete="off">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-  <input type="hidden" name="server_url" value="{{ server_url }}">
-  <input type="hidden" name="school" value="{{ school }}">
-  <input type="hidden" name="username" value="{{ username }}">
+  <input type="hidden" name="token" value="{{ token }}">
   <input type="hidden" name="password" value="{{ password }}">
   <label>Klasse
     <select name="untis_class_id" id="klassenwahl" required>

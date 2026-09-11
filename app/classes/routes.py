@@ -1,6 +1,7 @@
 from flask import (Blueprint, render_template, redirect, url_for, flash, request,
                    abort, current_app)
 from flask_login import login_required, current_user
+from itsdangerous import URLSafeTimedSerializer, BadData
 
 from app.extensions import db
 from app.models import SchoolClass, Membership
@@ -8,6 +9,36 @@ from app.classes.forms import JoinForm
 from app.verify import verify_and_list_classes
 
 bp = Blueprint("classes", __name__)
+
+_JOIN_SALT = "classes-join"
+_JOIN_MAX_AGE_SECONDS = 15 * 60
+
+
+def _serializer() -> URLSafeTimedSerializer:
+    return URLSafeTimedSerializer(current_app.config["SECRET_KEY"])
+
+
+def _generate_join_token(server_url: str, school: str, username: str, klassen) -> str:
+    """Bindet das, was choose() verwendet, an das, was join() tatsächlich
+    verifiziert hat — die Zugangsdaten und die verifizierte Klassenliste
+    können danach nicht mehr durch beliebige Formulardaten ersetzt werden."""
+    payload = {
+        "server_url": server_url,
+        "school": school,
+        "username": username,
+        "klassen_ids": [k.id for k in klassen],
+    }
+    return _serializer().dumps(payload, salt=_JOIN_SALT)
+
+
+def _verify_join_token(token: str):
+    """Liefert die Nutzlast oder None, wenn das Token fehlt, manipuliert oder
+    abgelaufen ist."""
+    try:
+        return _serializer().loads(token, salt=_JOIN_SALT,
+                                   max_age=_JOIN_MAX_AGE_SECONDS)
+    except BadData:
+        return None
 
 
 def _own_memberships():
@@ -32,12 +63,14 @@ def join():
         if not ok:
             flash(fehler, "error")
             return render_template("classes/join.html", form=form)
-        # Die Zugangsdaten werden nur weitergereicht, damit die Person im
-        # naechsten Schritt spenden kann — gespeichert wird hier nichts.
+        # Das Token bindet Server, Schule, Benutzername und die verifizierte
+        # Klassenliste — choose() vertraut nur ihm, nie dem Formular. Das
+        # Passwort wird nur weitergereicht, damit die Person im naechsten
+        # Schritt spenden kann — gespeichert wird es hier nicht.
+        token = _generate_join_token(form.server_url.data, form.school.data,
+                                     form.username.data, klassen)
         return render_template("classes/choose.html", klassen=klassen,
-                               server_url=form.server_url.data,
-                               school=form.school.data,
-                               username=form.username.data,
+                               token=token,
                                password=form.password.data)
     return render_template("classes/join.html", form=form)
 
@@ -45,11 +78,26 @@ def join():
 @bp.route("/classes/choose", methods=["POST"])
 @login_required
 def choose():
-    server_url = request.form["server_url"]
-    school = request.form["school"]
-    untis_class_id = int(request.form["untis_class_id"])
+    daten = _verify_join_token(request.form.get("token", ""))
+    if daten is None:
+        flash("Die Auswahl ist zu lange her oder ungültig. Bitte noch einmal "
+              "starten.", "error")
+        return redirect(url_for("classes.join"))
+
+    server_url = daten["server_url"]
+    school = daten["school"]
+    username = daten["username"]
+
+    try:
+        untis_class_id = int(request.form["untis_class_id"])
+    except (KeyError, ValueError):
+        abort(400)
+    if untis_class_id not in daten["klassen_ids"]:
+        flash("Diese Klasse gehört nicht zur geprüften Auswahl. Bitte noch "
+              "einmal starten.", "error")
+        return redirect(url_for("classes.join"))
+
     name = request.form["name"]
-    username = request.form["username"]
     password = request.form["password"]
     spenden = bool(request.form.get("spenden"))
 
