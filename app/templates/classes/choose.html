@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Klasse wählen{% endblock %}
+{% block content %}
+<h1>Welche Klasse ist deine?</h1>
+<form method="post" action="{{ url_for('classes.choose') }}" class="card" autocomplete="off">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <input type="hidden" name="server_url" value="{{ server_url }}">
+  <input type="hidden" name="school" value="{{ school }}">
+  <input type="hidden" name="username" value="{{ username }}">
+  <input type="hidden" name="password" value="{{ password }}">
+  <label>Klasse
+    <select name="untis_class_id" id="klassenwahl" required>
+      {% for k in klassen %}
+        <option value="{{ k.id }}" data-name="{{ k.name }}">{{ k.name }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <input type="hidden" name="name" id="klassenname" value="{{ klassen[0].name if klassen }}">
+  <label class="spende">
+    <input type="checkbox" name="spenden" value="ja">
+    Meinen Zugang für diese Klasse bereitstellen
+  </label>
+  <p class="hinweis">Wenn du das ankreuzt, wird dein WebUntis-Passwort verschlüsselt
+  gespeichert und alle 90 Minuten für den Abruf des Klassenplans verwendet. Alle
+  anderen Mitglieder brauchen dann kein eigenes Passwort mehr. Du kannst die Spende
+  jederzeit zurückziehen — die Zugangsdaten werden dann sofort gelöscht.</p>
+  <button type="submit">Klasse hinzufügen</button>
+</form>
+<script>
+  // Klassenname mitschicken, damit die Anzeige ohne zweiten Abruf stimmt.
+  document.getElementById("klassenwahl").addEventListener("change", function (e) {
+    var opt = e.target.selectedOptions[0];
+    document.getElementById("klassenname").value = opt.dataset.name;
+  });
+</script>
+{% endblock %}
