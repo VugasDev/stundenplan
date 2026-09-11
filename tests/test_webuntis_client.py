@@ -1,4 +1,5 @@
 import datetime
+import pytest
 from app.webuntis_client import fetch_raw_lessons
 
 
@@ -108,3 +109,24 @@ def test_klassenplan_fragt_genau_die_uebergebene_klasse_ab():
     fetch_class_lessons({}, 7, datetime.date(2026, 9, 14), datetime.date(2026, 9, 20),
                         session_factory=lambda c: fake)
     assert fake.angefragte_klasse == 7
+
+
+def test_fetch_classes_logs_out_even_on_error():
+    class _Boom(_FakeSession):
+        def klassen(self):
+            raise RuntimeError("boom")
+    fake = _Boom()
+    with pytest.raises(RuntimeError):
+        fetch_classes({}, session_factory=lambda c: fake)
+    assert fake.eingeloggt is False
+
+
+def test_fetch_class_lessons_logs_out_even_on_error():
+    class _Boom(_FakeSession):
+        def timetable(self, start, end, **kw):
+            raise RuntimeError("boom")
+    fake = _Boom()
+    with pytest.raises(RuntimeError):
+        fetch_class_lessons({}, 7, datetime.date(2026, 9, 14), datetime.date(2026, 9, 20),
+                            session_factory=lambda c: fake)
+    assert fake.eingeloggt is False
