@@ -16,7 +16,7 @@ class _Period:
         self.code = code
 
 
-class _FakeSession:
+class _FakeSessionRawLessons:
     def __init__(self, periods):
         self._periods = periods
         self.logged_in = False
@@ -36,7 +36,7 @@ class _FakeSession:
 def test_fetch_converts_periods_to_rawlessons():
     d = datetime.datetime(2026, 9, 10, 8, 0)
     periods = [_Period(d, d + datetime.timedelta(minutes=45), ["WB"], ["C005"], ["GS"], None)]
-    session = _FakeSession(periods)
+    session = _FakeSessionRawLessons(periods)
     creds = {"server_url": "s", "school": "sch", "username": "u", "password": "p"}
 
     raw = fetch_raw_lessons(creds, d.date(), d.date(), session_factory=lambda c: session)
@@ -52,7 +52,7 @@ def test_fetch_converts_periods_to_rawlessons():
 def test_fetch_handles_empty_element_lists():
     d = datetime.datetime(2026, 9, 10, 8, 0)
     periods = [_Period(d, d + datetime.timedelta(minutes=45), [], [], [], "cancelled")]
-    session = _FakeSession(periods)
+    session = _FakeSessionRawLessons(periods)
     creds = {"server_url": "s", "school": "sch", "username": "u", "password": "p"}
     raw = fetch_raw_lessons(creds, d.date(), d.date(), session_factory=lambda c: session)
     assert raw[0].subject == ""
@@ -62,7 +62,7 @@ def test_fetch_handles_empty_element_lists():
 
 
 def test_fetch_logs_out_even_on_timetable_error():
-    class _Boom(_FakeSession):
+    class _Boom(_FakeSessionRawLessons):
         def my_timetable(self, start, end):
             raise RuntimeError("boom")
     session = _Boom([])
@@ -73,3 +73,38 @@ def test_fetch_logs_out_even_on_timetable_error():
     except RuntimeError:
         pass
     assert session.logged_out is True
+
+
+from app.webuntis_client import fetch_classes, fetch_class_lessons
+
+
+class _FakeKlasse:
+    def __init__(self, id, name): self.id, self.name = id, name
+
+
+class _FakeSession:
+    """Minimale Nachbildung der webuntis-Session."""
+    def __init__(self, klassen=(), perioden=()):
+        self._klassen, self._perioden = klassen, perioden
+        self.angefragte_klasse = None
+        self.eingeloggt = False
+    def login(self): self.eingeloggt = True; return self
+    def logout(self): self.eingeloggt = False
+    def klassen(self): return self._klassen
+    def timetable(self, start, end, **kw):
+        self.angefragte_klasse = kw.get("klasse")
+        return self._perioden
+
+
+def test_klassenliste_wird_auf_id_und_name_reduziert():
+    fake = _FakeSession(klassen=[_FakeKlasse(7, "FI42"), _FakeKlasse(9, "FIT61")])
+    klassen = fetch_classes({}, session_factory=lambda c: fake)
+    assert [(k.id, k.name) for k in klassen] == [(7, "FI42"), (9, "FIT61")]
+    assert fake.eingeloggt is False   # Abmeldung auch im Erfolgsfall
+
+
+def test_klassenplan_fragt_genau_die_uebergebene_klasse_ab():
+    fake = _FakeSession(perioden=[])
+    fetch_class_lessons({}, 7, datetime.date(2026, 9, 14), datetime.date(2026, 9, 20),
+                        session_factory=lambda c: fake)
+    assert fake.angefragte_klasse == 7
