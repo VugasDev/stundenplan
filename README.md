@@ -1,7 +1,8 @@
 # WebUntis-Stundenplan
 
-Multi-User-Web-App: jede Person hinterlegt ihre WebUntis-Zugänge und sieht
-ihre Stundenpläne gebündelt (Woche/Agenda). Ein täglicher Job ruft ab.
+Multi-User-Web-App: Klassengruppen mit gespendeten WebUntis-Zugängen (eine Person
+je Klasse). Alle Mitglieder sehen den gebündelten Plan (Woche/Agenda). Ein Job
+ruft halbstündlich ab — tatsächlich nur, wenn nötig.
 
 ## Setup
 
@@ -50,14 +51,19 @@ Zeit des Servers — LXCs laufen üblicherweise auf UTC, und die "Jetzt"-Ansicht
 läge sonst im Sommer zwei Stunden zurück. Die Jetzt-Linie im Plan nutzt die Uhr
 des Browsers und ist davon unabhängig.
 
-## Täglicher Abruf
+## Abruf
 
-- Dateien aus `deploy/` nach `/etc/systemd/system/` kopieren, App nach `/opt/stundenplan`.
-- Der Fetch-Service läuft als dedizierter `stundenplan`-User, nicht als root:
-  `sudo useradd --system --home /opt/stundenplan stundenplan` und
-  `sudo chown -R stundenplan:stundenplan /opt/stundenplan`.
-- `systemctl enable --now stundenplan-fetch.timer`
-- Manuell: `flask --app app fetch-now` oder `python -m app.fetch`
+Der Plan einer Klasse wird **einmal** geholt und von allen Mitgliedern gelesen.
+Der Timer weckt halbstündlich, tatsächlich abgerufen wird eine Klasse aber nur,
+wenn ihr letzter Abruf mindestens 90 Minuten her ist und die Ortszeit zwischen
+6:00 und 22:00 liegt.
+
+"Jetzt aktualisieren" ist je Klasse auf einen Abruf alle 15 Minuten begrenzt;
+innerhalb dieser Frist wird der gespeicherte Stand angezeigt, mit Angabe seines
+Alters.
+
+Es wird nur gespeichert, was im Abruffenster liegt (21 Tage) — vergangene Stunden
+werden bei jedem Abruf gelöscht.
 
 ## Sicherheit
 
