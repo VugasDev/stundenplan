@@ -30,10 +30,15 @@ def test_index_shows_lessons_for_week(app, client):
 
 
 def test_agenda_view_renders(app, client):
-    _login_user_with_lessons(app, client)
-    resp = client.get("/?view=agenda&week=2026-09-07")
+    """Die Agenda zeigt nur Bevorstehendes — der Testfall muss deshalb in der
+    Zukunft liegen, sonst schlaegt er ab dem Folgetag fehl."""
+    u, acc = _login_user_with_lessons(app, client)
+    morgen = datetime.date.today() + datetime.timedelta(days=1)
+    db.session.add(_lesson(acc, morgen.isoformat(), "08:00", "09:30", subject="AGENDA"))
+    db.session.commit()
+    resp = client.get("/?view=agenda")
     assert resp.status_code == 200
-    assert b"WB" in resp.data
+    assert b"AGENDA" in resp.data
 
 
 def test_user_cannot_see_other_users_lessons(app, client):
