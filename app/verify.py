@@ -20,6 +20,8 @@ def verify_and_list_classes(server_url: str, school: str, username: str,
     try:
         return True, list(lister(credentials)), ""
     except Exception:
-        # Die Originalmeldung koennte die Zugangsdaten enthalten — nicht durchreichen.
+        # Wir fangen alle Exceptions der WebUntis-Bibliothek ab — deren Meldungen
+        # koennten die Zugangsdaten enthalten. BaseException (Abbruch durch Nutzer
+        # oder Interpreter) wird bewusst durchgelassen.
         return False, [], ("Anmeldung bei WebUntis fehlgeschlagen. Bitte Server, "
                            "Schule, Benutzername und Passwort prüfen.")
