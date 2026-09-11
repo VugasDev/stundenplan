@@ -50,3 +50,32 @@ def test_restliche_sperrzeit_wird_aufgerundet_gemeldet():
 def test_alter_des_zwischenstands():
     assert age_in_minutes(None, _zeit(10)) is None
     assert age_in_minutes(_zeit(10), _zeit(10, 7)) == 7
+
+
+def test_zukunfts_zeitstempel_cooldown_wird_nicht_ueberschritten():
+    # Systemzeitsprung oder Zeitumstellung: letzter Abruf liegt in der Zukunft.
+    # cooldown_remaining darf nie laenger als MANUAL_COOLDOWN_MINUTES sein.
+    letzter = _zeit(10)
+    eine_stunde_zurueck = letzter - datetime.timedelta(hours=1)
+    assert cooldown_remaining(letzter, eine_stunde_zurueck) <= MANUAL_COOLDOWN_MINUTES
+
+
+def test_zukunfts_zeitstempel_alter_wird_nicht_negativ():
+    # age_in_minutes darf nie negativ sein.
+    letzter = _zeit(10)
+    eine_stunde_zurueck = letzter - datetime.timedelta(hours=1)
+    alter = age_in_minutes(letzter, eine_stunde_zurueck)
+    assert alter is not None
+    assert alter >= 0
+
+
+def test_zukunfts_zeitstempel_abruf_verhalten():
+    # Bei Zukunfts-Zeitstempel: kein Abruf, solange die Frist rechnerisch nicht abgelaufen ist.
+    # Begründung: Der Zukunfts-Zeitstempel bedeutet, dass der "letzte Abruf" noch nicht
+    # stattgefunden hat (oder die Systemzeit ist vor dem Abruf). In beiden Fällen ist
+    # die sichere Reaktion, nicht sofort wieder abzurufen — wir klemmen die verstrichene
+    # Zeit auf null, als würde der Abruf gerade jetzt stattfinden.
+    letzter = _zeit(10)
+    eine_stunde_zurueck = letzter - datetime.timedelta(hours=1)
+    assert may_fetch_manually(letzter, eine_stunde_zurueck) is False
+    assert may_fetch_automatically(letzter, eine_stunde_zurueck) is False

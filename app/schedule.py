@@ -16,7 +16,11 @@ ACTIVE_UNTIL = datetime.time(22, 0)
 def _minutes_since(last_fetch_at, now) -> float | None:
     if last_fetch_at is None:
         return None
-    return (now - last_fetch_at).total_seconds() / 60
+    minutes = (now - last_fetch_at).total_seconds() / 60
+    # Zeitumstellung oder Systemzeitsprung koennen den letzten Abruf in die Zukunft
+    # verschieben. Wir klemmen negative Werte auf 0, um sichere Sperrfristen zu
+    # gewaehrleisten und negative Alter auszuschliessen.
+    return max(0, minutes)
 
 
 def may_fetch_automatically(last_fetch_at, now: datetime.datetime) -> bool:
