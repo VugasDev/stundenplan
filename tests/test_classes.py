@@ -242,6 +242,20 @@ def test_token_einer_schule_erlaubt_keinen_beitritt_bei_anderer_schule(
     assert klasse_b.username == "fremdspender"
 
 
+def test_manipulierter_name_im_formular_wird_ignoriert(app, client, user, monkeypatch):
+    """Regression fuer W4: der Anzeigename kam bisher ungeprueft aus dem
+    Formular — wer eine Klasse zuerst anlegt, konnte den fuer alle
+    sichtbaren Namen frei bestimmen. Gespeichert wird jetzt der Name aus der
+    verifizierten Klassenliste im Token."""
+    _patch_verify(monkeypatch, klassen=(UntisClass(7, "FI42"),))
+    token = _join_und_token(client)
+    client.post("/classes/choose", data={
+        "token": token, "password": "geheim", "untis_class_id": "7",
+        "name": "GEFAELSCHT", "spenden": ""}, follow_redirects=True)
+    k = db.session.query(SchoolClass).one()
+    assert k.name == "FI42"
+
+
 def test_nicht_verifizierte_klassen_id_wird_abgewiesen(app, client, user, monkeypatch):
     _patch_verify(monkeypatch, klassen=(UntisClass(7, "FI42"),))
     token = _join_und_token(client)

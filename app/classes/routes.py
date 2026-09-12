@@ -26,7 +26,9 @@ def _generate_join_token(server_url: str, school: str, username: str, klassen) -
         "server_url": server_url,
         "school": school,
         "username": username,
-        "klassen_ids": [k.id for k in klassen],
+        # Name und ID je Klasse — choose() nimmt den Anzeigenamen daraus,
+        # nie aus dem POST, sonst koennte jeder Beitretende ihn frei waehlen.
+        "klassen": [{"id": k.id, "name": k.name} for k in klassen],
     }
     return _serializer().dumps(payload, salt=_JOIN_SALT)
 
@@ -93,12 +95,16 @@ def choose():
         untis_class_id = int(request.form["untis_class_id"])
     except (KeyError, ValueError):
         abort(400)
-    if untis_class_id not in daten["klassen_ids"]:
+    eintrag = next((k for k in daten["klassen"] if k["id"] == untis_class_id), None)
+    if eintrag is None:
         flash("Diese Klasse gehört nicht zur geprüften Auswahl. Bitte noch "
               "einmal starten.", "error")
         return redirect(url_for("classes.join"))
 
-    name = request.form["name"]
+    # Der Anzeigename kommt aus der verifizierten Klassenliste im Token, nie
+    # aus dem Formular — sonst koennte, wer eine Klasse zuerst anlegt, den
+    # fuer alle sichtbaren Namen frei bestimmen.
+    name = eintrag["name"]
     password = request.form["password"]
     spenden = bool(request.form.get("spenden"))
 
