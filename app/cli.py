@@ -21,6 +21,17 @@ def register_cli(app):
                 window_days=current_app.config["FETCH_WINDOW_DAYS"])
         click.echo("Abruf abgeschlossen.")
 
+    @app.cli.command("upgrade-db")
+    def upgrade_db():
+        """Traegt nach einem Update fehlende Spalten nach."""
+        db.create_all()
+        ergaenzt = add_missing_columns()
+        db.session.commit()
+        if ergaenzt:
+            click.echo("Ergänzt: " + ", ".join(ergaenzt))
+        else:
+            click.echo("Nichts zu tun — das Schema ist aktuell.")
+
     @app.cli.command("migrate-to-classes")
     def migrate_to_classes():
         """Ueberfuehrt bestehende Zugaenge in Klassenquellen.
@@ -121,3 +132,29 @@ def migrate_accounts_to_classes(lister=None, cipher=None) -> dict:
         db.session.commit()
 
     return zuordnung
+
+
+# Spalten, die nach der ersten Auslieferung dazugekommen sind. SQLite kann sie
+# per ALTER TABLE nachtragen; db.create_all() aendert bestehende Tabellen nicht.
+NACHGETRAGENE_SPALTEN = [
+    ("school_classes", "members_left_at", "DATETIME"),
+]
+
+
+def add_missing_columns() -> list[str]:
+    """Ergaenzt fehlende Spalten in bestehenden Tabellen.
+
+    Rueckgabe: welche ergaenzt wurden ("tabelle.spalte"). Mehrfach ausfuehrbar —
+    was schon da ist, wird uebersprungen.
+    """
+    inspektor = db.inspect(db.engine)
+    ergaenzt = []
+    for tabelle, spalte, typ in NACHGETRAGENE_SPALTEN:
+        if not inspektor.has_table(tabelle):
+            continue
+        vorhanden = {s["name"] for s in inspektor.get_columns(tabelle)}
+        if spalte in vorhanden:
+            continue
+        db.session.execute(db.text(f"ALTER TABLE {tabelle} ADD COLUMN {spalte} {typ}"))
+        ergaenzt.append(f"{tabelle}.{spalte}")
+    return ergaenzt

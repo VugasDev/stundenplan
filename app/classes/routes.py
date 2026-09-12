@@ -7,6 +7,9 @@ from app.extensions import db, limiter
 from app.models import SchoolClass, Membership, Lesson
 from app.classes.forms import JoinForm
 from app.verify import verify_and_list_classes
+from app.zeit import local_now, local_today
+from app.lifecycle import (dormant_reason, course_ended,
+                           laufzeiten_aus_konfiguration)
 
 bp = Blueprint("classes", __name__)
 
@@ -51,7 +54,23 @@ def _own_memberships():
 @bp.route("/classes")
 @login_required
 def list_classes():
-    return render_template("classes/list.html", memberships=_own_memberships())
+    """Meine Klassen — mit dem Grund, falls eine nicht mehr abgerufen wird."""
+    zone = current_app.config["TIMEZONE"]
+    heute = local_today(zone)
+    laufzeiten = laufzeiten_aus_konfiguration(current_app.config.get("KLASSENLAUFZEITEN"))
+    zustand = {}
+    for m in _own_memberships():
+        k = m.school_class
+        grund = dormant_reason(k, heute, laufzeiten)
+        if grund is not None:
+            zustand[k.id] = "stillgelegt (verlassen)" if grund == "verlassen" \
+                else "stillgelegt (Bildungsgang beendet)"
+        elif course_ended(k.name, heute, laufzeiten) is None:
+            # Ohne hinterlegte Laufzeit wird nie automatisch stillgelegt —
+            # das soll sichtbar sein, damit niemand darauf wartet.
+            zustand[k.id] = "Laufzeit unbekannt"
+    return render_template("classes/list.html", memberships=_own_memberships(),
+                           zustand=zustand)
 
 
 @bp.route("/classes/join", methods=["GET", "POST"])
@@ -143,6 +162,8 @@ def choose():
                  .filter_by(user_id=current_user.id, class_id=school_class.id).first())
     if vorhanden is None:
         db.session.add(Membership(user_id=current_user.id, class_id=school_class.id))
+    # Ein Beitritt hebt eine laufende Schonfrist auf — die Klasse wird gelesen.
+    school_class.members_left_at = None
     db.session.commit()
 
     if school_class.has_source:
@@ -184,6 +205,15 @@ def leave(class_id):
     if m is None:
         abort(404)
     db.session.delete(m)
+    db.session.flush()
+    # War das die letzte Mitgliedschaft, beginnt die Schonfrist: nach ihrem
+    # Ablauf wird die Klasse nicht mehr abgerufen, weil sie niemand mehr liest.
+    verbleibend = (db.session.query(Membership)
+                   .filter_by(class_id=class_id).count())
+    if verbleibend == 0:
+        school_class = db.session.get(SchoolClass, class_id)
+        if school_class is not None:
+            school_class.members_left_at = local_now(current_app.config["TIMEZONE"])
     db.session.commit()
     flash("Klasse entfernt.", "success")
     return redirect(url_for("classes.list_classes"))

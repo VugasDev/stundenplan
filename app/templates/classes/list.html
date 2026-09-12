@@ -12,10 +12,12 @@
       <td>{{ k.name }}</td>
       <td>{{ k.school }}</td>
       <td>
-        {% if k.has_source %}
+        {% if zustand.get(k.id) %}
+          <em>{{ zustand[k.id] }}</em>
+        {% elif k.has_source %}
           {{ k.last_fetch_status or "noch nicht abgerufen" }}
         {% else %}
-          <em>kein Zugang gespendet</em>
+          <em>kein Zugang bereitgestellt</em>
         {% endif %}
       </td>
       <td>

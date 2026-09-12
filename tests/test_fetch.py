@@ -143,3 +143,51 @@ def test_automatiklauf_holt_faellige_klassen(app):
                      today=datetime.date(2026, 9, 16),
                      fetcher=lambda c, kid, s, e: [_raw()])
     assert anzahl == 1
+
+
+# --- Stillgelegte Klassen werden nicht abgerufen ------------------------------
+
+def test_verlassene_klasse_wird_nicht_mehr_abgerufen(app):
+    from app.zeit import local_now
+    import datetime as dt
+    k = _klasse()
+    k.members_left_at = local_now() - dt.timedelta(days=8)
+    db.session.commit()
+    def fetcher(*a, **kw):
+        raise AssertionError("darf nicht aufgerufen werden")
+    anzahl = run_all(_Cipher(), now=datetime.datetime(2026, 9, 16, 10, 0),
+                     today=datetime.date(2026, 9, 16), fetcher=fetcher)
+    assert anzahl == 0
+
+
+def test_klasse_in_der_schonfrist_wird_noch_abgerufen(app):
+    from app.zeit import local_now
+    import datetime as dt
+    k = _klasse()
+    k.members_left_at = local_now() - dt.timedelta(days=2)
+    db.session.commit()
+    anzahl = run_all(_Cipher(), now=datetime.datetime(2026, 9, 16, 10, 0),
+                     today=datetime.date(2026, 9, 16),
+                     fetcher=lambda c, kid, s, e: [_raw()])
+    assert anzahl == 1
+
+
+def test_klasse_mit_abgelaufenem_bildungsgang_wird_nicht_abgerufen(app):
+    # FI42: 2024 eingeschult, drei Jahre -> im Schuljahr 2027/28 vorbei.
+    k = _klasse(name="FI42")
+    db.session.commit()
+    def fetcher(*a, **kw):
+        raise AssertionError("darf nicht aufgerufen werden")
+    anzahl = run_all(_Cipher(), now=datetime.datetime(2027, 9, 1, 10, 0),
+                     today=datetime.date(2027, 9, 1), fetcher=fetcher)
+    assert anzahl == 0
+
+
+def test_klasse_mit_unbekanntem_kuerzel_wird_weiter_abgerufen(app):
+    # Ohne hinterlegte Laufzeit wird nicht geraten.
+    k = _klasse(name="AVV41")
+    db.session.commit()
+    anzahl = run_all(_Cipher(), now=datetime.datetime(2040, 9, 1, 10, 0),
+                     today=datetime.date(2040, 9, 1),
+                     fetcher=lambda c, kid, s, e: [_raw(tag="2040-09-03")])
+    assert anzahl == 1
