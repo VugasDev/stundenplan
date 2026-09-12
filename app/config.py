@@ -34,6 +34,11 @@ class Config:
     # Zeitzone des Unterrichts — der Server laeuft auf UTC.
     TIMEZONE = os.environ.get("TIMEZONE", "Europe/Berlin")
 
+    # Zusaetzliche Laufzeiten von Bildungsgaengen als JSON, z.B. {"AVV": 1}.
+    # Ergaenzt die im Code vorbelegten; ein Kuerzel ohne Eintrag wird nie
+    # automatisch stillgelegt.
+    KLASSENLAUFZEITEN = os.environ.get("KLASSENLAUFZEITEN", "")
+
     FETCH_WINDOW_DAYS = 21
 
     # Prozessweiter Socket-Timeout: verhindert, dass ein haengender SMTP- oder

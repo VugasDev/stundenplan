@@ -75,7 +75,13 @@ am Nutzerkonto). Für ein laufendes System in dieser Reihenfolge vorgehen:
 2. **Code einspielen** (neuen Branch/Release auschecken, Abhängigkeiten
    aktualisieren: `pip install -r requirements.txt`).
 3. **Tests laufen lassen:** `.venv/bin/pytest` — erst danach weiter.
-4. **Migration ausführen:** `flask --app app migrate-to-classes`. Der Befehl
+4. **Schema und Daten migrieren:**
+   ```
+   flask --app app upgrade-db            # trägt fehlende Spalten nach
+   flask --app app migrate-to-classes    # überführt die Konten
+   ```
+   `upgrade-db` ist mehrfach ausführbar und nach jedem Update sinnvoll.
+   `migrate-to-classes`
    überführt bestehende WebUntis-Konten in Klassenquellen samt
    Mitgliedschaft und legt anschließend die Tabelle `lessons` mit dem neuen
    Schema neu an (die Stunden sind wegwerfbar, der nächste Abruf füllt sie
@@ -111,6 +117,31 @@ werden (z.B. `DROP TABLE webuntis_accounts;`).
 ## Tests
 
 `.venv/bin/pytest`
+
+## Wann eine Klasse stillgelegt wird
+
+Stillgelegt heißt: Der Plan dieser Klasse wird nicht mehr abgerufen. Gelöscht
+wird nichts zusätzlich — die Löschfristen räumen ihn binnen drei Wochen ab, weil
+nichts mehr nachkommt. Tritt jemand wieder bei, läuft der Abruf weiter.
+
+Zwei unabhängige Gründe:
+
+- **Verlassen.** Endet die letzte Mitgliedschaft, beginnt eine Schonfrist von
+  sieben Tagen. Ein Wiedereintritt hebt sie auf.
+- **Bildungsgang beendet.** Klassennamen folgen dem Schema Kürzel +
+  Einschulungsjahr (eine Ziffer) + Parallelklasse, etwa `FI42` für FI, 2024,
+  Parallelklasse 2. Ist die Laufzeit des Kürzels hinterlegt, endet der Abruf zum
+  Schuljahresende.
+
+Vorbelegt sind `FI` (3 Jahre) sowie `FIT`, `FET` und `FMT` (4 Jahre). Weitere
+Kürzel trägt man über `KLASSENLAUFZEITEN` in der `.env` nach.
+
+**Im Zweifel läuft eine Klasse weiter.** Ein Kürzel ohne hinterlegte Laufzeit
+wird nie automatisch stillgelegt, ebenso ein Name, der dem Schema nicht folgt —
+solche Namen sind häufig. Die Buchstabenzahl des Kürzels taugt bewusst nicht als
+Regel: Schulen führen ein- bis dreibuchstabige Kürzel, und gleich lange Kürzel
+stehen für Bildungsgänge sehr unterschiedlicher Dauer. Die Klassenliste weist
+deshalb aus, wenn eine Laufzeit unbekannt ist.
 
 ## Lizenz
 

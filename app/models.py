@@ -53,6 +53,10 @@ class SchoolClass(db.Model):
     last_fetch_at = db.Column(db.DateTime, nullable=True)
     last_fetch_status = db.Column(db.String(255), nullable=True)
 
+    # Wann die letzte Mitgliedschaft endete. Nach der Schonfrist wird die Klasse
+    # stillgelegt; ein Wiedereintritt leert das Feld und hebt die Frist auf.
+    members_left_at = db.Column(db.DateTime, nullable=True)
+
     __table_args__ = (
         db.UniqueConstraint("server_url", "school", "untis_class_id",
                             name="uq_klasse_je_schule"),
