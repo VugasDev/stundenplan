@@ -30,6 +30,14 @@ def fetch_class(school_class, cipher, today=None, window_days=21,
 
     today = today or local_today()
     end = today + datetime.timedelta(days=window_days)
+
+    # Ausserhalb des Fensters wird bei jedem Abruf geloescht — unabhaengig
+    # davon, ob der Login gleich danach gelingt. Eigener Commit, damit ein
+    # Fehlschlag weiter unten diese Loeschung nicht per Rollback rueckgaengig
+    # macht (Spec: "bei jedem Abruf", nicht nur bei erfolgreichem).
+    purge_outside_window(school_class, today, window_days)
+    db.session.commit()
+
     try:
         credentials = {
             "server_url": school_class.server_url,
@@ -51,7 +59,6 @@ def fetch_class(school_class, cipher, today=None, window_days=21,
                 subject=n.subject, room=n.room, teacher=n.teacher,
                 status=n.status, note=n.note,
             ))
-        purge_outside_window(school_class, today, window_days)
         school_class.last_fetch_status = "ok"
     except Exception as exc:  # Fehler je Klasse isolieren
         db.session.rollback()

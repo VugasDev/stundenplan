@@ -79,6 +79,26 @@ def test_stunden_ausserhalb_des_fensters_werden_geloescht(app):
     assert k.lessons == []
 
 
+def test_fehlschlag_loescht_trotzdem_stunden_ausserhalb_des_fensters(app):
+    """Regression fuer W1: Fensterloeschung und purge_outside_window lagen
+    hinter dem Netzaufruf im try; eine Ausnahme rollte alles zurueck. Eine
+    Klasse, deren Spender das Passwort aendert, behielt so ihren Stand samt
+    vergangener Stunden dauerhaft — die Spec verlangt Loeschung 'bei jedem
+    Abruf', nicht nur bei erfolgreichem."""
+    k = _klasse()
+    heute = datetime.date(2026, 9, 16)
+    db.session.add(Lesson(class_id=k.id, date=heute - datetime.timedelta(days=1),
+                          start_time=datetime.time(8), end_time=datetime.time(9),
+                          subject="ALT", room="", teacher="", status="normal"))
+    db.session.commit()
+
+    def fetcher(*a, **kw):
+        raise RuntimeError("WebUntis weg")
+
+    fetch_class(k, _Cipher(), today=heute, fetcher=fetcher)
+    assert k.lessons == []
+
+
 def test_automatiklauf_ueberspringt_klassen_innerhalb_des_intervalls(app):
     k = _klasse()
     k.last_fetch_at = datetime.datetime(2026, 9, 16, 10, 0)
