@@ -4,7 +4,7 @@ from flask_login import login_required, current_user
 from itsdangerous import URLSafeTimedSerializer, BadData
 
 from app.extensions import db
-from app.models import SchoolClass, Membership
+from app.models import SchoolClass, Membership, Lesson
 from app.classes.forms import JoinForm
 from app.verify import verify_and_list_classes
 
@@ -140,8 +140,17 @@ def revoke(class_id):
     school_class.username = None
     school_class.password_encrypted = None
     school_class.donor_user_id = None
+    school_class.last_fetch_at = None
+    school_class.last_fetch_status = None
+    # Ohne Quelle findet nie wieder ein Abruf statt — die Stunden der Klasse
+    # muessen deshalb mit dem Widerruf verschwinden, sonst blieben sie allen
+    # Mitgliedern unbegrenzt sichtbar (Spec: Löschfristen, keine Historie).
+    (db.session.query(Lesson)
+     .filter_by(class_id=school_class.id)
+     .delete(synchronize_session=False))
     db.session.commit()
-    flash("Spende zurückgezogen. Die Zugangsdaten wurden gelöscht.", "success")
+    flash("Spende zurückgezogen. Die Zugangsdaten und gespeicherten Stunden "
+          "wurden gelöscht.", "success")
     return redirect(url_for("classes.list_classes"))
 
 

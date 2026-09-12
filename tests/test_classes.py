@@ -3,7 +3,7 @@ import datetime
 import pytest
 
 from app.extensions import db
-from app.models import User, SchoolClass, Membership
+from app.models import User, SchoolClass, Membership, Lesson
 from app.webuntis_client import UntisClass
 
 
@@ -108,6 +108,31 @@ def test_widerruf_loescht_die_zugangsdaten(app, client, user, monkeypatch):
     assert k.password_encrypted is None
     assert k.username is None
     assert k.donor_user_id is None
+
+
+def test_widerruf_loescht_auch_die_stunden_und_den_abrufstatus(app, client, user, monkeypatch):
+    """Regression fuer K3: ohne Quelle findet nie wieder ein Abruf statt —
+    ohne Loeschung blieben die Stunden der Klasse unbegrenzt fuer alle
+    Mitglieder sichtbar (Verstoss gegen 'Löschfristen' und 'Keine Historie')."""
+    _patch_verify(monkeypatch)
+    token = _join_und_token(client)
+    client.post("/classes/choose", data={
+        "token": token, "password": "geheim", "untis_class_id": "7",
+        "name": "FI42", "spenden": "ja"}, follow_redirects=True)
+    k = db.session.query(SchoolClass).one()
+    k.last_fetch_status = "ok"
+    k.last_fetch_at = datetime.datetime(2026, 9, 16, 10, 0)
+    db.session.add(Lesson(class_id=k.id, date=datetime.date(2026, 9, 16),
+                          start_time=datetime.time(8, 0), end_time=datetime.time(8, 45),
+                          subject="WB", room="C005", teacher="GS", status="normal"))
+    db.session.commit()
+
+    client.post(f"/classes/{k.id}/revoke", follow_redirects=True)
+
+    assert db.session.query(Lesson).filter_by(class_id=k.id).count() == 0
+    k = db.session.get(SchoolClass, k.id)
+    assert k.last_fetch_status is None
+    assert k.last_fetch_at is None
 
 
 def test_nur_der_spender_darf_widerrufen(app, client, user, monkeypatch):
