@@ -65,9 +65,7 @@ def login():
             flash("Bitte bestätige zuerst deine E-Mail-Adresse.", "error")
             return render_template("auth/login.html", form=form)
         login_user(user)
-        # Literaler Pfad statt url_for: entkoppelt Auth vom timetable-Endpoint,
-        # der erst in Task 9 entsteht. "/" gehört ab Task 9 timetable.index.
-        return redirect("/")
+        return redirect(url_for("timetable.index"))
     return render_template("auth/login.html", form=form)
 
 
@@ -143,4 +141,9 @@ def reset_password(user_id, token):
 def logout():
     logout_user()
     flash("Abgemeldet.", "success")
-    return redirect(url_for("auth.login"))
+    antwort = redirect(url_for("auth.login"))
+    # Die App haelt den zuletzt gesehenen Plan auf dem Geraet, damit er ohne
+    # Netz lesbar bleibt. Beim Abmelden muss er weg — auf einem geteilten
+    # Geraet soll der Naechste nichts davon finden.
+    antwort.headers["Clear-Site-Data"] = '"cache", "storage"'
+    return antwort

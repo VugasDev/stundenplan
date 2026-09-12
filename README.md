@@ -143,6 +143,37 @@ Regel: Schulen führen ein- bis dreibuchstabige Kürzel, und gleich lange Kürze
 stehen für Bildungsgänge sehr unterschiedlicher Dauer. Die Klassenliste weist
 deshalb aus, wenn eine Laufzeit unbekannt ist.
 
+## Auf dem Handy installieren
+
+Die App ist eine installierbare Web-App — kein App Store, keine Gebühren.
+
+- **Android (Chrome):** Seite öffnen → Menü → „App installieren" bzw. „Zum
+  Startbildschirm hinzufügen".
+- **iOS (Safari):** Seite öffnen → Teilen-Symbol → „Zum Home-Bildschirm".
+  Safari ist Pflicht; andere Browser dürfen auf iOS nicht installieren.
+
+Danach startet sie ohne Browserleiste mit eigenem Icon. Voraussetzung ist HTTPS
+(bei uns über den Reverse-Proxy gegeben).
+
+**Ohne Netz:** Der zuletzt geladene Plan bleibt lesbar — im Schulgebäude oft der
+Normalfall. Seiten kommen dabei immer zuerst aus dem Netz und nur bei Fehlschlag
+aus dem Speicher, damit online nie ein veralteter Plan erscheint. Eine nie
+geöffnete Seite zeigt offline einen Hinweis statt einer Browser-Fehlermeldung.
+
+Beim Abmelden sendet der Server `Clear-Site-Data`; der Browser leert Cache und
+Speicher dann selbst, damit auf einem geteilten Gerät kein Plan zurückbleibt.
+
+## Helle und dunkle Darstellung
+
+Standardmäßig folgt die Seite der Einstellung des Geräts. Der Umschalter in der
+Kopfzeile wechselt zwischen Gerät (◐), hell (☀) und dunkel (☾); die Wahl bleibt
+auf dem Gerät gespeichert und wird noch vor dem ersten Bild angewendet, damit auf
+dunklen Geräten nichts aufblitzt.
+
+Farben liegen als CSS-Variablen an einer Stelle — wer eine Farbe ändert, ändert
+sie für beide Darstellungen. Nur die Linie der aktuellen Uhrzeit bleibt bewusst in
+beiden Darstellungen rot.
+
 ## Lizenz
 
 MIT — siehe [LICENSE](LICENSE).

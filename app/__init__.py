@@ -1,6 +1,6 @@
 import socket
 
-from flask import Flask
+from flask import Flask, send_from_directory, render_template
 
 from app.config import Config
 from app.extensions import db, login_manager, limiter, csrf, mail
@@ -33,6 +33,27 @@ def create_app(config_object=None):
     @app.get("/healthz")
     def healthz():
         return "ok"
+
+    # Manifest und Service Worker gehoeren an die Wurzel: ein Service Worker
+    # darf nur den Pfad verwalten, unter dem er ausgeliefert wird — aus
+    # /static/sw.js koennte er die Seiten der App nicht behandeln.
+    @app.get("/manifest.webmanifest")
+    def manifest():
+        return send_from_directory(app.static_folder, "manifest.webmanifest",
+                                   mimetype="application/manifest+json")
+
+    @app.get("/sw.js")
+    def service_worker():
+        antwort = send_from_directory(app.static_folder, "sw.js",
+                                      mimetype="text/javascript")
+        # Der Worker selbst darf nicht veralten, sonst bleibt eine alte
+        # Fassung dauerhaft aktiv.
+        antwort.headers["Cache-Control"] = "no-cache"
+        return antwort
+
+    @app.get("/offline")
+    def offline():
+        return render_template("offline.html")
 
     from app.auth import bp as auth_bp
     app.register_blueprint(auth_bp)
