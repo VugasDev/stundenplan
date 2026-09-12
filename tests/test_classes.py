@@ -76,6 +76,27 @@ def test_spende_speichert_die_zugangsdaten_verschluesselt(app, client, user, mon
     assert k.donor_user_id == user.id
 
 
+def test_spende_mit_fehlschlagender_erneuter_pruefung_hinterlegt_keine_quelle(
+        app, client, user, monkeypatch):
+    """Regression fuer W2: choose() nahm das Passwort ungeprueft aus dem
+    Formular. Wer sich einmal gueltig anmeldet, koennte damit fuer jede
+    Klasse der Schule ein falsches Passwort als Spende eintragen. Direkt vor
+    dem Speichern wird jetzt erneut verifiziert; schlaegt das fehl, wird
+    nicht gespendet, die Klasse bleibt fuer einen echten Spender offen."""
+    _patch_verify(monkeypatch)  # /classes/join: Erst-Login gelingt
+    token = _join_und_token(client)
+    _patch_verify(monkeypatch, ok=False)  # erneute Pruefung vor dem Speichern schlaegt fehl
+    client.post("/classes/choose", data={
+        "token": token, "password": "geheim", "untis_class_id": "7",
+        "name": "FI42", "spenden": "ja"}, follow_redirects=True)
+    k = db.session.query(SchoolClass).one()
+    assert k.has_source is False
+    assert k.password_encrypted is None
+    assert k.donor_user_id is None
+    # Die Mitgliedschaft entsteht trotzdem.
+    assert db.session.query(Membership).count() == 1
+
+
 def test_zweiter_beitritt_nutzt_die_vorhandene_quelle(app, client, user, monkeypatch):
     _patch_verify(monkeypatch)
     token = _join_und_token(client, username="erster", password="geheim")

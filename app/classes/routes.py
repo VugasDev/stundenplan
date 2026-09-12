@@ -110,12 +110,24 @@ def choose():
         db.session.add(school_class)
         db.session.flush()
 
-    # Gespendet wird nur, wenn die Klasse noch keine Quelle hat.
+    # Gespendet wird nur, wenn die Klasse noch keine Quelle hat. Das Token
+    # bindet das Passwort bewusst nicht (itsdangerous signiert nur, es waere
+    # dort genauso lesbar) — deshalb wird unmittelbar vor dem Speichern noch
+    # einmal geprueft, dass die Zugangsdaten tatsaechlich funktionieren. Sonst
+    # koennte jeder mit gueltigem eigenen Login ein falsches Passwort als
+    # Spende fuer eine beliebige Klasse der Schule eintragen.
     if spenden and not school_class.has_source:
-        cipher = current_app.extensions["cipher"]
-        school_class.username = username
-        school_class.password_encrypted = cipher.encrypt(password)
-        school_class.donor_user_id = current_user.id
+        ok, _, _ = verify_and_list_classes(server_url, school, username, password)
+        if ok:
+            cipher = current_app.extensions["cipher"]
+            school_class.username = username
+            school_class.password_encrypted = cipher.encrypt(password)
+            school_class.donor_user_id = current_user.id
+        else:
+            flash("Die Spende wurde nicht gespeichert: Die Zugangsdaten "
+                  "konnten bei der erneuten Prüfung nicht bestätigt werden. "
+                  "Bitte Server, Schule, Benutzername und Passwort prüfen und "
+                  "die Spende erneut versuchen.", "error")
 
     vorhanden = (db.session.query(Membership)
                  .filter_by(user_id=current_user.id, class_id=school_class.id).first())
