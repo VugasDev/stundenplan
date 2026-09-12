@@ -5,10 +5,35 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}Stundenplan{% endblock %}</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
+  <link rel="manifest" href="/manifest.webmanifest">
+  <meta name="theme-color" content="#f7f7f8" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#15171c" media="(prefers-color-scheme: dark)">
+  <meta name="mobile-web-app-capable" content="yes">
+  {# iOS wertet das Manifest nicht aus und braucht diese beiden Angaben. #}
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Stundenplan">
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/apple-touch-icon.png') }}">
+  <link rel="icon" href="{{ url_for('static', filename='icons/icon-192.png') }}">
+  <script>
+    // Muss hier oben und ohne defer stehen: wird die Wahl erst spaeter gesetzt,
+    // blitzt auf einem dunklen Geraet kurz die helle Seite auf.
+    (function () {
+      try {
+        var wahl = localStorage.getItem("theme");
+        if (wahl === "dark" || wahl === "light") {
+          document.documentElement.setAttribute("data-theme", wahl);
+        }
+      } catch (e) { /* Speicher gesperrt: dann gilt die Geraeteeinstellung */ }
+    })();
+  </script>
 </head>
 <body>
 <nav class="nav">
   <a class="brand" href="/">Stundenplan</a>
+  <button type="button" id="theme-toggle" class="theme-toggle"
+          aria-label="Darstellung wechseln" title="Darstellung wechseln">–</button>
   {% if current_user.is_authenticated %}
     <a href="{{ url_for('timetable.index') }}">Plan</a>
     <a href="{{ url_for('classes.list_classes') }}">Klassen</a>
@@ -29,5 +54,55 @@
   {% endwith %}
   {% block content %}{% endblock %}
 </main>
+<script>
+  // Umschalter: Gerät → Hell → Dunkel → Gerät. Die Wahl bleibt auf dem Gerät.
+  (function () {
+    var knopf = document.getElementById("theme-toggle");
+    if (!knopf) return;
+    var ABFOLGE = [null, "light", "dark"];
+    var ZEICHEN = { "null": "◐", "light": "☀", "dark": "☾" };
+    var TITEL = { "null": "Darstellung: Gerät", "light": "Darstellung: hell",
+                  "dark": "Darstellung: dunkel" };
+
+    function lesen() {
+      try { return localStorage.getItem("theme") || null; } catch (e) { return null; }
+    }
+    function anzeigen(wahl) {
+      knopf.textContent = ZEICHEN[String(wahl)];
+      knopf.title = TITEL[String(wahl)];
+      knopf.setAttribute("aria-label", TITEL[String(wahl)]);
+    }
+    function setzen(wahl) {
+      if (wahl) {
+        document.documentElement.setAttribute("data-theme", wahl);
+      } else {
+        document.documentElement.removeAttribute("data-theme");
+      }
+      try {
+        if (wahl) localStorage.setItem("theme", wahl);
+        else localStorage.removeItem("theme");
+      } catch (e) { /* Speicher gesperrt: gilt nur für diese Sitzung */ }
+      anzeigen(wahl);
+    }
+
+    anzeigen(lesen());
+    knopf.addEventListener("click", function () {
+      var jetzt = lesen();
+      var i = ABFOLGE.indexOf(jetzt);
+      setzen(ABFOLGE[(i + 1) % ABFOLGE.length]);
+    });
+  })();
+
+  // Erst nach dem Laden registrieren, damit der Worker die erste Anzeige
+  // nicht verzoegert.
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", function () {
+      navigator.serviceWorker.register("/sw.js").catch(function () {
+        // Ohne Service Worker funktioniert die App normal weiter — nur eben
+        // nicht offline. Kein Grund, den Nutzer zu behelligen.
+      });
+    });
+  }
+</script>
 </body>
 </html>
