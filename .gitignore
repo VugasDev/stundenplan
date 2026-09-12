@@ -11,3 +11,6 @@ __pycache__/
 # SQLite-DB und Instance-Ordner
 instance/
 *.db
+
+# Arbeitsverzeichnis der Ausfuehrung (nicht ins Repo)
+.superpowers/

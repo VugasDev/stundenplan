@@ -11,7 +11,7 @@
   <a class="brand" href="/">Stundenplan</a>
   {% if current_user.is_authenticated %}
     <a href="{{ url_for('timetable.index') }}">Plan</a>
-    <a href="{{ url_for('accounts.list_accounts') }}">Zugänge</a>
+    <a href="{{ url_for('classes.list_classes') }}">Klassen</a>
     <form method="post" action="{{ url_for('auth.logout') }}" class="nav-logout">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <button type="submit">Abmelden</button>

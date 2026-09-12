@@ -1,5 +1,5 @@
 [Unit]
-Description=WebUntis Stundenplan taeglicher Abruf
+Description=WebUntis Stundenplan Abruf (Timer weckt halbstuendlich, faellig nur alle 90 Min, 6-22 Uhr)
 After=network-online.target
 
 [Service]

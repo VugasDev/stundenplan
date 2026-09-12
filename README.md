@@ -1,7 +1,8 @@
 # WebUntis-Stundenplan
 
-Multi-User-Web-App: jede Person hinterlegt ihre WebUntis-Zugänge und sieht
-ihre Stundenpläne gebündelt (Woche/Agenda). Ein täglicher Job ruft ab.
+Multi-User-Web-App: Klassengruppen mit gespendeten WebUntis-Zugängen (eine Person
+je Klasse). Alle Mitglieder sehen den gebündelten Plan (Woche/Agenda). Ein Job
+ruft halbstündlich ab — tatsächlich nur, wenn nötig.
 
 ## Setup
 
@@ -50,14 +51,52 @@ Zeit des Servers — LXCs laufen üblicherweise auf UTC, und die "Jetzt"-Ansicht
 läge sonst im Sommer zwei Stunden zurück. Die Jetzt-Linie im Plan nutzt die Uhr
 des Browsers und ist davon unabhängig.
 
-## Täglicher Abruf
+## Abruf
 
-- Dateien aus `deploy/` nach `/etc/systemd/system/` kopieren, App nach `/opt/stundenplan`.
-- Der Fetch-Service läuft als dedizierter `stundenplan`-User, nicht als root:
-  `sudo useradd --system --home /opt/stundenplan stundenplan` und
-  `sudo chown -R stundenplan:stundenplan /opt/stundenplan`.
-- `systemctl enable --now stundenplan-fetch.timer`
-- Manuell: `flask --app app fetch-now` oder `python -m app.fetch`
+Der Plan einer Klasse wird **einmal** geholt und von allen Mitgliedern gelesen.
+Der Timer weckt halbstündlich, tatsächlich abgerufen wird eine Klasse aber nur,
+wenn ihr letzter Abruf mindestens 90 Minuten her ist und die Ortszeit zwischen
+6:00 und 22:00 liegt.
+
+"Jetzt aktualisieren" ist je Klasse auf einen Abruf alle 15 Minuten begrenzt;
+innerhalb dieser Frist wird der gespeicherte Stand angezeigt, mit Angabe seines
+Alters.
+
+Es wird nur gespeichert, was im Abruffenster liegt (21 Tage) — vergangene Stunden
+werden bei jedem Abruf gelöscht.
+
+## Upgrade einer bestehenden Installation (kontobasiert → klassenbasiert)
+
+Der Umstieg ändert das Datenmodell (`Lesson` hängt jetzt an der Klasse statt
+am Nutzerkonto). Für ein laufendes System in dieser Reihenfolge vorgehen:
+
+1. **Datenbank sichern.** Bei SQLite reicht eine Kopie der `.db`-Datei, z.B.
+   `cp stundenplan.db stundenplan.db.bak`.
+2. **Code einspielen** (neuen Branch/Release auschecken, Abhängigkeiten
+   aktualisieren: `pip install -r requirements.txt`).
+3. **Tests laufen lassen:** `.venv/bin/pytest` — erst danach weiter.
+4. **Migration ausführen:** `flask --app app migrate-to-classes`. Der Befehl
+   überführt bestehende WebUntis-Konten in Klassenquellen samt
+   Mitgliedschaft und legt anschließend die Tabelle `lessons` mit dem neuen
+   Schema neu an (die Stunden sind wegwerfbar, der nächste Abruf füllt sie
+   binnen 90 Minuten wieder). Konten, deren Anzeigename keinem Klassennamen
+   der Schule entspricht, werden gemeldet und müssen einmalig über
+   „Klasse hinzufügen" in der Weboberfläche nachgeholt werden.
+5. **Dienst und Timer neu starten:**
+   ```
+   sudo systemctl restart stundenplan-web.service
+   sudo systemctl restart stundenplan-fetch.timer
+   ```
+6. **Erstabruf auslösen**, damit nicht bis zu 30 Minuten auf den Timer
+   gewartet werden muss: `flask --app app fetch-now`.
+7. **Prüfen:** `/healthz` liefert `ok`, eine Ansicht zeigt aktuelle Stunden,
+   `flask --app app migrate-to-classes` erneut ausgeführt meldet keine neuen
+   Zuordnungen mehr (idempotent).
+
+**Nachbemerkung:** Die alte Tabelle `webuntis_accounts` bleibt nach der
+Migration bestehen und enthält weiterhin verschlüsselte Zugangsdaten. Sie
+sollte erst nach erfolgreicher Prüfung von Hand aus der Datenbank entfernt
+werden (z.B. `DROP TABLE webuntis_accounts;`).
 
 ## Sicherheit
 

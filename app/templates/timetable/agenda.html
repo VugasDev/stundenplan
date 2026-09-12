@@ -12,7 +12,7 @@
         bis {{ agenda.current.end_time.strftime('%H:%M') }}
         {% if agenda.current.room %} · {{ agenda.current.room }}{% endif %}
         {% if agenda.current.teacher %} · {{ agenda.current.teacher }}{% endif %}
-        · {{ labels[agenda.current.account_id] }}
+        · {{ labels[agenda.current.class_id] }}
       </div>
     </div>
   {% endif %}
@@ -30,7 +30,7 @@
         {{ naechster.start_time.strftime('%H:%M') }}–{{ naechster.end_time.strftime('%H:%M') }}
         {% if naechster.room %} · {{ naechster.room }}{% endif %}
         {% if naechster.teacher %} · {{ naechster.teacher }}{% endif %}
-        · {{ labels[naechster.account_id] }}
+        · {{ labels[naechster.class_id] }}
       </div>
       {% if naechster.status == 'substitution' %}<span class="tt-badge">Vertretung</span>{% endif %}
       {% if naechster.status == 'cancelled' %}<span class="tt-badge">entfällt</span>{% endif %}
@@ -45,7 +45,7 @@
             <span class="ag-fach-klein">{{ b.subject }}</span>
             <span class="ag-meta-klein">
               {%- if b.room %}{{ b.room }} · {% endif -%}
-              {{ labels[b.account_id] }}
+              {{ labels[b.class_id] }}
             </span>
           </div>
         {% endfor %}
@@ -61,7 +61,7 @@
           mit {{ agenda.next_day.subject }}
           {%- if agenda.next_day.room %} in {{ agenda.next_day.room }}{% endif %}
         </div>
-      {% elif accounts %}
+      {% elif klassen %}
         <div class="ag-meta">In den nächsten Tagen steht nichts an.</div>
       {% endif %}
     </div>

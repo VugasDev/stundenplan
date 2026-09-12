@@ -19,7 +19,7 @@
         {{ axis_col(axis) }}
         <div class="tt-col">
           {% for b, top, height in eintraege %}
-            {{ block_el(b, labels[b.account_id], top, height) }}
+            {{ block_el(b, labels[b.class_id], top, height) }}
           {% endfor %}
         </div>
       </div>

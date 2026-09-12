@@ -8,8 +8,11 @@
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <button type="submit" class="tt-refresh">Aktualisieren</button>
   </form>
+  {% if cache_alter is not none %}
+    <span class="tt-alter">Stand: vor {{ cache_alter }} Minute(n)</span>
+  {% endif %}
 </div>
-{% if not accounts %}
-  <p class="tt-hinweis">Noch keine WebUntis-Zugänge.
-    <a href="{{ url_for('accounts.add_account') }}">Jetzt hinzufügen</a>.</p>
+{% if not klassen %}
+  <p class="tt-hinweis">Noch keine Klasse hinzugefügt.
+    <a href="{{ url_for('classes.join') }}">Jetzt hinzufügen</a>.</p>
 {% endif %}

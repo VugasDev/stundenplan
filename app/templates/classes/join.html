@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Klasse hinzufügen{% endblock %}
+{% block content %}
+<h1>Klasse hinzufügen</h1>
+<p>Mit deinem WebUntis-Login wird einmalig geprüft, zu welcher Schule du gehörst.
+Dein Passwort wird dabei <strong>nicht gespeichert</strong> — außer du entscheidest
+dich im nächsten Schritt ausdrücklich dafür, deinen Zugang zu spenden.</p>
+<form method="post" class="card">
+  {{ form.hidden_tag() }}
+  <label>{{ form.server_url.label }} {{ form.server_url() }}</label>
+  <label>{{ form.school.label }} {{ form.school() }}</label>
+  <label>{{ form.username.label }} {{ form.username() }}</label>
+  <label>{{ form.password.label }} {{ form.password() }}</label>
+  <button type="submit">Weiter</button>
+</form>
+{% endblock %}

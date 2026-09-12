@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Meine Klassen{% endblock %}
+{% block content %}
+<h1>Meine Klassen</h1>
+<p><a href="{{ url_for('classes.join') }}">Klasse hinzufügen</a></p>
+<table>
+  <thead><tr><th>Klasse</th><th>Schule</th><th>Abruf</th><th></th></tr></thead>
+  <tbody>
+  {% for m in memberships %}
+    {% set k = m.school_class %}
+    <tr>
+      <td>{{ k.name }}</td>
+      <td>{{ k.school }}</td>
+      <td>
+        {% if k.has_source %}
+          {{ k.last_fetch_status or "noch nicht abgerufen" }}
+        {% else %}
+          <em>kein Zugang gespendet</em>
+        {% endif %}
+      </td>
+      <td>
+        {% if k.donor_user_id == current_user.id %}
+          <form method="post" action="{{ url_for('classes.revoke', class_id=k.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit">Spende zurückziehen</button>
+          </form>
+        {% endif %}
+        <form method="post" action="{{ url_for('classes.leave', class_id=k.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit">Entfernen</button>
+        </form>
+      </td>
+    </tr>
+  {% else %}
+    <tr><td colspan="4">Noch keine Klasse hinzugefügt.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

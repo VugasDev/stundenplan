@@ -6,14 +6,14 @@ from app.blocks import merge_lessons
 
 
 def L(start, end, subject="ITD", room="K204", teacher="MUE", status="normal",
-      account_id=1, day="2026-09-16"):
+      class_id=1, day="2026-09-16"):
     """Baut ein Lesson-aehnliches Objekt, wie es aus der DB kommt."""
     return type("L", (), {
         "date": datetime.date.fromisoformat(day),
         "start_time": datetime.time.fromisoformat(start),
         "end_time": datetime.time.fromisoformat(end),
         "subject": subject, "room": room, "teacher": teacher,
-        "status": status, "account_id": account_id,
+        "status": status, "class_id": class_id,
     })()
 
 
@@ -54,8 +54,8 @@ def test_entfallene_stunde_verschmilzt_nicht_mit_regulaerer():
 
 
 def test_verschiedene_klassen_verschmelzen_nie():
-    blocks = merge_lessons([L("07:30", "08:15", account_id=1),
-                            L("08:15", "09:00", account_id=2)])
+    blocks = merge_lessons([L("07:30", "08:15", class_id=1),
+                            L("08:15", "09:00", class_id=2)])
     assert len(blocks) == 2
 
 

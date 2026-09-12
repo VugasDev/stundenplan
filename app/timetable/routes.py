@@ -6,9 +6,10 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from flask_login import login_required, current_user
 
 from app.extensions import db, limiter
-from app.models import WebUntisAccount, Lesson
-from app.fetch import fetch_account
+from app.models import SchoolClass, Membership, Lesson
+from app.fetch import fetch_class
 from app.blocks import merge_lessons, build_axis, agenda_view, axis_payload
+from app.schedule import may_fetch_manually, cooldown_remaining, age_in_minutes
 from app.zeit import local_now, local_today
 
 bp = Blueprint("timetable", __name__)
@@ -29,15 +30,18 @@ def _parse_date(arg: str | None, default: datetime.date) -> datetime.date:
     return default
 
 
-def _own_accounts() -> list[WebUntisAccount]:
-    return db.session.query(WebUntisAccount).filter_by(user_id=current_user.id).all()
+def _own_classes() -> list[SchoolClass]:
+    """Klassen, fuer die eine belegte Mitgliedschaft vorliegt."""
+    return (db.session.query(SchoolClass)
+            .join(Membership, Membership.class_id == SchoolClass.id)
+            .filter(Membership.user_id == current_user.id).all())
 
 
-def _lessons_between(account_ids, von: datetime.date, bis: datetime.date):
-    if not account_ids:
+def _lessons_between(class_ids, von: datetime.date, bis: datetime.date):
+    if not class_ids:
         return []
     return (db.session.query(Lesson)
-            .filter(Lesson.account_id.in_(account_ids),
+            .filter(Lesson.class_id.in_(class_ids),
                     Lesson.date >= von, Lesson.date <= bis)
             .order_by(Lesson.date, Lesson.start_time).all())
 
@@ -52,18 +56,24 @@ def _positioned(blocks, axis):
 @login_required
 def index():
     view = request.args.get("view", "agenda")
-    accounts = _own_accounts()
-    labels = {a.id: a.label for a in accounts}
-    account_ids = [a.id for a in accounts]
+    klassen = _own_classes()
+    labels = {k.id: k.name for k in klassen}
+    class_ids = [k.id for k in klassen]
     zone = current_app.config["TIMEZONE"]
     heute = local_today(zone)
+    jetzt = local_now(zone)
 
-    gemeinsam = {"accounts": accounts, "labels": labels, "view": view, "heute": heute}
+    aeltester = min((k.last_fetch_at for k in klassen if k.last_fetch_at),
+                    default=None)
+    gemeinsam = {
+        "klassen": klassen, "labels": labels, "view": view, "heute": heute,
+        "cache_alter": age_in_minutes(aeltester, jetzt),
+    }
 
     if view == "week":
         monday = _monday_of(_parse_date(request.args.get("week"), heute))
         sunday = monday + datetime.timedelta(days=6)
-        blocks = merge_lessons(_lessons_between(account_ids, monday, sunday))
+        blocks = merge_lessons(_lessons_between(class_ids, monday, sunday))
         axis = build_axis(blocks)
         # Wochenende nur zeigen, wenn dort tatsaechlich Unterricht liegt.
         belegte_tage = {b.date for b in blocks}
@@ -81,7 +91,7 @@ def index():
 
     if view == "day":
         tag = _parse_date(request.args.get("day"), heute)
-        blocks = merge_lessons(_lessons_between(account_ids, tag, tag))
+        blocks = merge_lessons(_lessons_between(class_ids, tag, tag))
         axis = build_axis(blocks)
         return render_template(
             "timetable/day.html", axis=axis, eintraege=_positioned(blocks, axis),
@@ -92,7 +102,7 @@ def index():
             **gemeinsam)
 
     bis = heute + datetime.timedelta(days=AGENDA_VORSCHAU_TAGE)
-    blocks = merge_lessons(_lessons_between(account_ids, heute, bis))
+    blocks = merge_lessons(_lessons_between(class_ids, heute, bis))
     return render_template("timetable/agenda.html",
                            agenda=agenda_view(blocks, local_now(zone)),
                            **gemeinsam)
@@ -103,7 +113,30 @@ def index():
 @login_required
 def refresh():
     cipher = current_app.extensions["cipher"]
-    for account in _own_accounts():
-        fetch_account(account, cipher)
-    flash("Stundenpläne aktualisiert.", "success")
+    zone = current_app.config["TIMEZONE"]
+    jetzt = local_now(zone)
+    geholt, gesperrt, fehlgeschlagen = 0, [], []
+    for school_class in _own_classes():
+        if not school_class.has_source:
+            continue
+        if not may_fetch_manually(school_class.last_fetch_at, jetzt):
+            gesperrt.append((school_class.name,
+                             cooldown_remaining(school_class.last_fetch_at, jetzt)))
+            continue
+        fetch_class(school_class, cipher, zone=zone)
+        # fetch_class() gibt nur zurueck, ob ueberhaupt ein Versuch
+        # unternommen wurde, nicht ob er gelang — das steht am Abrufstatus.
+        if school_class.last_fetch_status == "ok":
+            geholt += 1
+        else:
+            fehlgeschlagen.append(school_class.name)
+
+    if geholt:
+        flash(f"{geholt} Klasse(n) aktualisiert.", "success")
+    if fehlgeschlagen:
+        flash(f"Abruf fehlgeschlagen für: {', '.join(fehlgeschlagen)}", "error")
+    if gesperrt:
+        namen = ", ".join(f"{name} (noch {rest} Minute(n))" for name, rest in gesperrt)
+        flash(f"Bereits kürzlich abgerufen, angezeigt wird der gespeicherte "
+              f"Stand: {namen}", "error")
     return redirect(request.referrer or url_for("timetable.index"))
