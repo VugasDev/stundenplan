@@ -176,3 +176,41 @@ def test_migration_ohne_tabelle_meldet_leeres_ergebnis(app):
         cipher=type("C", (), {"decrypt": lambda self, t: "geheim"})(),
     )
     assert zuordnung == {}
+
+
+# --- Fehlende Spalten nachtragen ---------------------------------------------
+
+def test_upgrade_db_ergaenzt_die_fehlende_spalte(app):
+    """Regression: db.create_all() aendert bestehende Tabellen nicht. Eine neu
+    eingefuehrte Spalte fehlt danach, und jede Abfrage darauf schlaegt fehl."""
+    from app.cli import add_missing_columns
+    from app.extensions import db
+
+    # Zustand einer Datenbank, die vor der Einfuehrung der Spalte angelegt wurde.
+    db.session.execute(db.text("DROP TABLE IF EXISTS school_classes"))
+    db.session.execute(db.text("""
+        CREATE TABLE school_classes (
+            id INTEGER PRIMARY KEY, server_url VARCHAR(255) NOT NULL,
+            school VARCHAR(255) NOT NULL, untis_class_id INTEGER NOT NULL,
+            name VARCHAR(100) NOT NULL, username VARCHAR(255),
+            password_encrypted TEXT, donor_user_id INTEGER,
+            last_fetch_at DATETIME, last_fetch_status VARCHAR(255))"""))
+    db.session.commit()
+    spalten = [r[1] for r in db.session.execute(db.text("pragma table_info(school_classes)"))]
+    assert "members_left_at" not in spalten
+
+    ergaenzt = add_missing_columns()
+    db.session.commit()
+
+    spalten = [r[1] for r in db.session.execute(db.text("pragma table_info(school_classes)"))]
+    assert "members_left_at" in spalten
+    assert "school_classes.members_left_at" in ergaenzt
+    # Und die Spalte ist danach wirklich abfragbar.
+    db.session.execute(db.text("SELECT members_left_at FROM school_classes")).fetchall()
+
+
+def test_upgrade_db_ist_mehrfach_ausfuehrbar(app):
+    from app.cli import add_missing_columns
+    from app.extensions import db
+    add_missing_columns(); db.session.commit()
+    assert add_missing_columns() == []      # beim zweiten Lauf nichts mehr zu tun
