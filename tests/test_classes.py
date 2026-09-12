@@ -266,6 +266,19 @@ def test_nicht_verifizierte_klassen_id_wird_abgewiesen(app, client, user, monkey
     assert db.session.query(Membership).count() == 0
 
 
+def test_fehlende_formularfelder_fuehren_zu_verstaendlicher_meldung(app, client, user, monkeypatch):
+    """Regression fuer G3: fehlende Formularfelder (z.B. Passwort) durften
+    nicht in einer technischen 500er-Seite enden, sondern sollen mit einer
+    verstaendlichen deutschen Meldung zurueck zum Beitrittsformular fuehren."""
+    _patch_verify(monkeypatch)
+    token = _join_und_token(client)
+    resp = client.post("/classes/choose", data={
+        "token": token, "untis_class_id": "7"}, follow_redirects=True)
+    assert resp.status_code == 200
+    assert "Bitte alle Felder ausfüllen".encode("utf-8") in resp.data
+    assert db.session.query(SchoolClass).count() == 0
+
+
 def test_abgelaufenes_token_wird_abgewiesen(app, client, user, monkeypatch):
     _patch_verify(monkeypatch)
     import app.classes.routes as routes

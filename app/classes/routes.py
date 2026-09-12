@@ -93,8 +93,12 @@ def choose():
 
     try:
         untis_class_id = int(request.form["untis_class_id"])
+        password = request.form["password"]
     except (KeyError, ValueError):
-        abort(400)
+        flash("Bitte alle Felder ausfüllen und die Klasse erneut auswählen.",
+              "error")
+        return redirect(url_for("classes.join"))
+
     eintrag = next((k for k in daten["klassen"] if k["id"] == untis_class_id), None)
     if eintrag is None:
         flash("Diese Klasse gehört nicht zur geprüften Auswahl. Bitte noch "
@@ -105,7 +109,6 @@ def choose():
     # aus dem Formular — sonst koennte, wer eine Klasse zuerst anlegt, den
     # fuer alle sichtbaren Namen frei bestimmen.
     name = eintrag["name"]
-    password = request.form["password"]
     spenden = bool(request.form.get("spenden"))
 
     school_class = (db.session.query(SchoolClass)
