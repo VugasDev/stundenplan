@@ -7,6 +7,21 @@ class _FakeKlasse:
     def __init__(self, id, name): self.id, self.name = id, name
 
 
+class _FakeNamed:
+    def __init__(self, name): self.name = name
+
+
+class _FakePeriode:
+    """Nachbildung einer webuntis-Periode mit den Feldern, die
+    fetch_class_lessons tatsaechlich liest."""
+    def __init__(self, start, end, subjects=(), rooms=(), teachers=(), code=None):
+        self.start, self.end = start, end
+        self.subjects = [_FakeNamed(n) for n in subjects]
+        self.rooms = [_FakeNamed(n) for n in rooms]
+        self.teachers = [_FakeNamed(n) for n in teachers]
+        self.code = code
+
+
 class _FakeSession:
     """Minimale Nachbildung der webuntis-Session."""
     def __init__(self, klassen=(), perioden=()):
@@ -33,6 +48,36 @@ def test_klassenplan_fragt_genau_die_uebergebene_klasse_ab():
     fetch_class_lessons({}, 7, datetime.date(2026, 9, 14), datetime.date(2026, 9, 20),
                         session_factory=lambda c: fake)
     assert fake.angefragte_klasse == 7
+
+
+def test_klassenplan_fuehrt_mehrere_faecher_raeume_lehrer_zusammen():
+    """Regression fuer W6: fetch_class_lessons wurde nur mit einer leeren
+    Periodenliste getestet. Ein falscher Attributname bei _join_names oder
+    der Code-Durchreichung fiele damit erst im Betrieb auf, und dort nur als
+    'Fach leer'."""
+    start = datetime.datetime(2026, 9, 16, 7, 30)
+    end = datetime.datetime(2026, 9, 16, 8, 15)
+    periode_voll = _FakePeriode(
+        start, end, subjects=["ITD", "WBE"], rooms=["K204", "K205"],
+        teachers=["MUE", "SCH"], code="cancelled")
+    periode_leer = _FakePeriode(start, end, subjects=[], rooms=[], teachers=[], code=None)
+    fake = _FakeSession(perioden=[periode_voll, periode_leer])
+
+    ergebnis = fetch_class_lessons({}, 7, datetime.date(2026, 9, 14),
+                                   datetime.date(2026, 9, 20),
+                                   session_factory=lambda c: fake)
+
+    voll, leer = ergebnis
+    assert voll.subject == "ITD, WBE"
+    assert voll.room == "K204, K205"
+    assert voll.teacher == "MUE, SCH"
+    assert voll.code == "cancelled"
+    assert voll.start == start and voll.end == end
+
+    assert leer.subject == ""
+    assert leer.room == ""
+    assert leer.teacher == ""
+    assert leer.code is None
 
 
 def test_fetch_classes_logs_out_even_on_error():
