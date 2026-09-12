@@ -3,7 +3,7 @@ from flask import (Blueprint, render_template, redirect, url_for, flash, request
 from flask_login import login_required, current_user
 from itsdangerous import URLSafeTimedSerializer, BadData
 
-from app.extensions import db
+from app.extensions import db, limiter
 from app.models import SchoolClass, Membership, Lesson
 from app.classes.forms import JoinForm
 from app.verify import verify_and_list_classes
@@ -53,6 +53,7 @@ def list_classes():
 
 
 @bp.route("/classes/join", methods=["GET", "POST"])
+@limiter.limit("10 per hour", methods=["POST"])
 @login_required
 def join():
     form = JoinForm()

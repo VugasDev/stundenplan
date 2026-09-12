@@ -33,6 +33,37 @@ def _join_und_token(client, server_url="s.webuntis.com", school="s",
     return match.group(1).decode()
 
 
+def test_join_ist_ratenbegrenzt():
+    """Regression fuer W3: jeder POST auf /classes/join loeste einen echten
+    Login gegen die Schule aus — unbegrenzt, also zum Durchprobieren von
+    Passwoertern nutzbar. Eigene App-Instanz mit eingeschaltetem Rate-Limit,
+    damit die uebrigen Tests (TestConfig hat RATELIMIT_ENABLED=False) davon
+    unberuehrt bleiben."""
+    from app import create_app
+    from app.config import TestConfig
+    from app.extensions import db as _db
+
+    class RatenbegrenzteTestConfig(TestConfig):
+        RATELIMIT_ENABLED = True
+
+    app = create_app(RatenbegrenzteTestConfig)
+    with app.app_context():
+        _db.create_all()
+        u = User(email="a@b.de", confirmed=True); u.set_password("geheim123")
+        _db.session.add(u); _db.session.commit()
+        client = app.test_client()
+        client.post("/login", data={"email": "a@b.de", "password": "geheim123"})
+        _patch_verify(monkeypatch=pytest.MonkeyPatch(), ok=False)
+
+        antworten = [client.post("/classes/join", data={
+            "server_url": "s.webuntis.com", "school": "s",
+            "username": "schueler", "password": "falsch"}) for _ in range(11)]
+        _db.session.remove()
+        _db.drop_all()
+    assert antworten[-1].status_code == 429
+    assert all(a.status_code != 429 for a in antworten[:10])
+
+
 def test_beitritt_zeigt_die_klassen_zur_auswahl(app, client, user, monkeypatch):
     _patch_verify(monkeypatch)
     resp = client.post("/classes/join", data={
