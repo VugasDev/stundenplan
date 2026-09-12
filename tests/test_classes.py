@@ -331,3 +331,37 @@ def test_wiedereintritt_loescht_den_zeitpunkt(app, client, user, monkeypatch):
     assert db.session.get(SchoolClass, k.id).members_left_at is not None
     _beitritt(client, spenden="")
     assert db.session.get(SchoolClass, k.id).members_left_at is None
+
+
+def test_klassenliste_zeigt_stillgelegte_klasse_mit_grund(app, client, user, monkeypatch):
+    _patch_verify(monkeypatch)
+    _beitritt(client, spenden="ja")
+    k = db.session.query(SchoolClass).one()
+    # Mitgliedschaft bleibt, aber der Bildungsgang ist abgelaufen: FI42 endet
+    # im Schuljahr 2027/28. Wir taeuschen das ueber den Klassennamen nicht vor,
+    # sondern ueber eine abgelaufene Schonfrist.
+    import datetime as dt
+    from app.zeit import local_now
+    k.members_left_at = local_now() - dt.timedelta(days=30)
+    db.session.commit()
+    resp = client.get("/classes")
+    assert resp.status_code == 200
+    assert "stillgelegt".encode("utf-8") in resp.data
+
+
+def test_klassenliste_weist_unbekannte_laufzeit_aus(app, client, user, monkeypatch):
+    _patch_verify(monkeypatch, klassen=(UntisClass(3, "AVV41"),))
+    token = _join_und_token(client)
+    client.post("/classes/choose", data={
+        "token": token, "password": "geheim", "untis_class_id": "3",
+        "name": "AVV41", "spenden": "ja"}, follow_redirects=True)
+    resp = client.get("/classes")
+    assert "Laufzeit unbekannt".encode("utf-8") in resp.data
+
+
+def test_klassenliste_zeigt_bei_laufender_klasse_keinen_hinweis(app, client, user, monkeypatch):
+    _patch_verify(monkeypatch)
+    _beitritt(client, spenden="ja")
+    resp = client.get("/classes")
+    assert "stillgelegt".encode("utf-8") not in resp.data
+    assert "Laufzeit unbekannt".encode("utf-8") not in resp.data

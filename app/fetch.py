@@ -7,7 +7,7 @@ from app.models import SchoolClass, Lesson
 from app.lessons import normalize
 from app.webuntis_client import fetch_class_lessons
 from app.schedule import may_fetch_automatically
-from app.lifecycle import dormant_reason
+from app.lifecycle import dormant_reason, laufzeiten_aus_konfiguration
 from app.zeit import local_today, local_now, STANDARD_ZONE
 
 
@@ -110,7 +110,9 @@ def main() -> None:
         zone = app.config["TIMEZONE"]
         run_all(app.extensions["cipher"],
                 now=local_now(zone), today=local_today(zone),
-                window_days=app.config["FETCH_WINDOW_DAYS"], zone=zone)
+                window_days=app.config["FETCH_WINDOW_DAYS"], zone=zone,
+                laufzeiten=laufzeiten_aus_konfiguration(
+                    app.config.get("KLASSENLAUFZEITEN")))
 
 
 if __name__ == "__main__":

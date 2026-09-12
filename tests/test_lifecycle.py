@@ -173,3 +173,34 @@ def test_abgelaufener_bildungsgang_wird_stillgelegt():
 def test_unbekanntes_kuerzel_mit_mitgliedern_laeuft_weiter():
     assert dormant_reason(_Klasse("AVV41"), datetime.date(2040, 1, 1),
                           LAUFZEITEN) is None
+
+
+# --- Laufzeiten aus der Konfiguration ----------------------------------------
+
+from app.lifecycle import laufzeiten_aus_konfiguration  # noqa: E402
+
+
+def test_ohne_eintrag_gelten_die_vorbelegten_laufzeiten():
+    assert laufzeiten_aus_konfiguration(None) == STANDARD_LAUFZEITEN
+    assert laufzeiten_aus_konfiguration("") == STANDARD_LAUFZEITEN
+
+
+def test_eigene_laufzeiten_ergaenzen_die_vorbelegten():
+    ergebnis = laufzeiten_aus_konfiguration('{"AVV": 1, "BFA": 2}')
+    assert ergebnis["AVV"] == 1 and ergebnis["BFA"] == 2
+    assert ergebnis["FI"] == 3          # Vorbelegung bleibt erhalten
+
+
+def test_eigener_eintrag_ueberschreibt_die_vorbelegung():
+    assert laufzeiten_aus_konfiguration('{"FI": 4}')["FI"] == 4
+
+
+def test_kuerzel_werden_in_grossbuchstaben_verglichen():
+    assert laufzeiten_aus_konfiguration('{"avv": 1}')["AVV"] == 1
+
+
+def test_unbrauchbare_konfiguration_faellt_auf_die_vorbelegung_zurueck():
+    """Ein Tippfehler in der .env darf nicht den Abruf lahmlegen."""
+    assert laufzeiten_aus_konfiguration("{kaputt") == STANDARD_LAUFZEITEN
+    assert laufzeiten_aus_konfiguration('{"FI": "drei"}') == STANDARD_LAUFZEITEN
+    assert laufzeiten_aus_konfiguration('["FI", 3]') == STANDARD_LAUFZEITEN

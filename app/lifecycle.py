@@ -21,6 +21,7 @@ nicht hinterlegt ist, laeuft weiter.
 from __future__ import annotations
 
 import datetime
+import json
 import re
 from dataclasses import dataclass
 
@@ -137,3 +138,25 @@ def dormant_reason(school_class, today: datetime.date,
     if course_ended(school_class.name, today, laufzeiten) is True:
         return "beendet"
     return None
+
+
+def laufzeiten_aus_konfiguration(rohwert: str | None) -> dict[str, int]:
+    """Liest zusaetzliche Laufzeiten aus der Konfiguration.
+
+    Erwartet JSON der Form {"AVV": 1, "BFA": 2}. Die Vorbelegung bleibt
+    erhalten und wird nur ueberschrieben, wo ein Kuerzel erneut vorkommt.
+    Unbrauchbare Angaben werden verworfen — ein Tippfehler in der .env darf
+    nicht den Abruf lahmlegen.
+    """
+    laufzeiten = dict(STANDARD_LAUFZEITEN)
+    if not rohwert:
+        return laufzeiten
+    try:
+        eigene = json.loads(rohwert)
+        if not isinstance(eigene, dict):
+            raise ValueError("kein Objekt")
+        gepruegt = {str(k).upper(): int(v) for k, v in eigene.items()}
+    except (ValueError, TypeError):
+        return laufzeiten
+    laufzeiten.update(gepruegt)
+    return laufzeiten
