@@ -117,6 +117,24 @@ def test_refresh_nach_ablauf_der_sperrfrist_ruft_ab(app, client, monkeypatch):
     assert gerufen == [k.id]
 
 
+def test_refresh_zaehlt_fehlgeschlagene_klassen_nicht_als_aktualisiert(app, client, monkeypatch):
+    """Regression fuer G2: refresh() zaehlte hoch, ohne das Ergebnis zu
+    pruefen — 'aktualisiert' trotz Login-Fehler. fetch_class() gibt nur
+    zurueck, ob ueberhaupt ein Versuch unternommen wurde, nicht ob er
+    gelang."""
+    import app.timetable.routes as routes
+    u, k = _login_user_with_lessons(app, client)
+
+    def fehlschlagender_fetch(sc, cipher, zone=None):
+        sc.last_fetch_status = "RuntimeError: WebUntis weg"
+        return True
+
+    monkeypatch.setattr(routes, "fetch_class", fehlschlagender_fetch)
+    resp = client.post("/refresh", follow_redirects=True)
+    assert b"aktualisiert" not in resp.data
+    assert k.name.encode("utf-8") in resp.data
+
+
 # --- Ansichten ---------------------------------------------------------------
 
 def test_standardansicht_ist_die_agenda(app, client):

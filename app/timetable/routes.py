@@ -115,7 +115,7 @@ def refresh():
     cipher = current_app.extensions["cipher"]
     zone = current_app.config["TIMEZONE"]
     jetzt = local_now(zone)
-    geholt, gesperrt = 0, []
+    geholt, gesperrt, fehlgeschlagen = 0, [], []
     for school_class in _own_classes():
         if not school_class.has_source:
             continue
@@ -124,10 +124,17 @@ def refresh():
                              cooldown_remaining(school_class.last_fetch_at, jetzt)))
             continue
         fetch_class(school_class, cipher, zone=zone)
-        geholt += 1
+        # fetch_class() gibt nur zurueck, ob ueberhaupt ein Versuch
+        # unternommen wurde, nicht ob er gelang — das steht am Abrufstatus.
+        if school_class.last_fetch_status == "ok":
+            geholt += 1
+        else:
+            fehlgeschlagen.append(school_class.name)
 
     if geholt:
         flash(f"{geholt} Klasse(n) aktualisiert.", "success")
+    if fehlgeschlagen:
+        flash(f"Abruf fehlgeschlagen für: {', '.join(fehlgeschlagen)}", "error")
     if gesperrt:
         namen = ", ".join(f"{name} (noch {rest} Minute(n))" for name, rest in gesperrt)
         flash(f"Bereits kürzlich abgerufen, angezeigt wird der gespeicherte "
