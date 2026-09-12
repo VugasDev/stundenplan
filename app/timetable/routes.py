@@ -66,7 +66,7 @@ def index():
     aeltester = min((k.last_fetch_at for k in klassen if k.last_fetch_at),
                     default=None)
     gemeinsam = {
-        "accounts": klassen, "labels": labels, "view": view, "heute": heute,
+        "klassen": klassen, "labels": labels, "view": view, "heute": heute,
         "cache_alter": age_in_minutes(aeltester, jetzt),
     }
 

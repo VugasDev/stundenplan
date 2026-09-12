@@ -30,6 +30,19 @@ def test_index_requires_login(client):
     assert client.get("/", follow_redirects=False).status_code in (301, 302)
 
 
+def test_ansichten_ohne_mitgliedschaft_stuerzen_nicht_ab(app, client):
+    """Regression fuer K1: der Nav-Hinweis verlinkte auf den entfernten
+    accounts-Blueprint und riss die Seite mit einem BuildError (HTTP 500)
+    fuer jeden Nutzer ohne Klasse."""
+    u = User(email="ohne-klasse@b.de"); u.set_password("geheim123"); u.confirmed = True
+    db.session.add(u); db.session.commit()
+    client.post("/login", data={"email": "ohne-klasse@b.de", "password": "geheim123"})
+    for pfad in ("/", "/?view=day", "/?view=week"):
+        resp = client.get(pfad)
+        assert resp.status_code == 200
+    assert b"Noch keine Klasse hinzugef" in client.get("/").data
+
+
 def test_index_shows_lessons_for_week(app, client):
     _login_user_with_lessons(app, client)
     resp = client.get("/?view=week&week=2026-09-07")  # Woche enthält den 10.09.
