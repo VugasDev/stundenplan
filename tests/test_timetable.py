@@ -97,7 +97,7 @@ def test_refresh_innerhalb_der_sperrfrist_ruft_nicht_ab(app, client, monkeypatch
     db.session.commit()
     gerufen = []
     monkeypatch.setattr(routes, "fetch_class",
-                        lambda sc, cipher: gerufen.append(sc.id))
+                        lambda sc, cipher, zone=None: gerufen.append(sc.id))
     resp = client.post("/refresh", follow_redirects=True)
     assert gerufen == []
     assert "Minute".encode("utf-8") in resp.data   # Hinweis auf die Wartezeit
@@ -112,7 +112,7 @@ def test_refresh_nach_ablauf_der_sperrfrist_ruft_ab(app, client, monkeypatch):
     db.session.commit()
     gerufen = []
     monkeypatch.setattr(routes, "fetch_class",
-                        lambda sc, cipher: gerufen.append(sc.id))
+                        lambda sc, cipher, zone=None: gerufen.append(sc.id))
     client.post("/refresh", follow_redirects=True)
     assert gerufen == [k.id]
 

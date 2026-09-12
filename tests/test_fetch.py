@@ -99,6 +99,32 @@ def test_fehlschlag_loescht_trotzdem_stunden_ausserhalb_des_fensters(app):
     assert k.lessons == []
 
 
+def test_zeitzone_wird_an_local_today_und_local_now_durchgereicht(app, monkeypatch):
+    """Regression fuer G1: fetch.py rief local_today()/local_now() ohne
+    Zonenargument auf (also hart Europe/Berlin), waehrend Ansichten und
+    main() config['TIMEZONE'] verwenden. Bei abweichender Einstellung waeren
+    Sperrfrist und angezeigtes Alter um die Differenz falsch."""
+    import app.fetch as fetch_mod
+    aufgerufen = []
+
+    def fake_local_today(zone=None):
+        aufgerufen.append(("today", zone))
+        return datetime.date(2026, 9, 16)
+
+    def fake_local_now(zone=None):
+        aufgerufen.append(("now", zone))
+        return datetime.datetime(2026, 9, 16, 10, 0)
+
+    monkeypatch.setattr(fetch_mod, "local_today", fake_local_today)
+    monkeypatch.setattr(fetch_mod, "local_now", fake_local_now)
+
+    k = _klasse()
+    fetch_class(k, _Cipher(), zone="Europe/Vienna", fetcher=lambda c, kid, s, e: [])
+
+    assert ("today", "Europe/Vienna") in aufgerufen
+    assert ("now", "Europe/Vienna") in aufgerufen
+
+
 def test_automatiklauf_ueberspringt_klassen_innerhalb_des_intervalls(app):
     k = _klasse()
     k.last_fetch_at = datetime.datetime(2026, 9, 16, 10, 0)

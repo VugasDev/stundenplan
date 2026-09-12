@@ -7,7 +7,7 @@ from app.models import SchoolClass, Lesson
 from app.lessons import normalize
 from app.webuntis_client import fetch_class_lessons
 from app.schedule import may_fetch_automatically
-from app.zeit import local_today, local_now
+from app.zeit import local_today, local_now, STANDARD_ZONE
 
 
 def purge_outside_window(school_class, today: datetime.date, window_days: int) -> int:
@@ -23,12 +23,12 @@ def purge_outside_window(school_class, today: datetime.date, window_days: int) -
 
 
 def fetch_class(school_class, cipher, today=None, window_days=21,
-                fetcher=fetch_class_lessons) -> bool:
+                fetcher=fetch_class_lessons, zone=STANDARD_ZONE) -> bool:
     """Holt den Plan einer Klasse. Rueckgabe: ob abgerufen wurde."""
     if not school_class.has_source:
         return False
 
-    today = today or local_today()
+    today = today or local_today(zone)
     end = today + datetime.timedelta(days=window_days)
 
     # Ausserhalb des Fensters wird bei jedem Abruf geloescht — unabhaengig
@@ -70,16 +70,17 @@ def fetch_class(school_class, cipher, today=None, window_days=21,
         # wuerde eine dauerhaft fehlschlagende Klasse bei jedem Automatiklauf
         # erneut versucht. Ortszeit, nicht UTC: may_fetch_automatically vergleicht
         # gegen local_now() und braucht dieselbe Skala, sonst waere der Vergleich
-        # um die Zeitzonenverschiebung falsch.
-        school_class.last_fetch_at = local_now()
+        # um die Zeitzonenverschiebung falsch. Konfigurierte Zone durchreichen,
+        # sonst wuerde hier immer Europe/Berlin verwendet.
+        school_class.last_fetch_at = local_now(zone)
         db.session.commit()
     return True
 
 
 def run_all(cipher, now=None, today=None, window_days=21,
-            fetcher=fetch_class_lessons) -> int:
+            fetcher=fetch_class_lessons, zone=STANDARD_ZONE) -> int:
     """Automatiklauf: holt nur faellige Klassen und nur tagsueber."""
-    now = now or local_now()
+    now = now or local_now(zone)
     geholt = 0
     for school_class in db.session.query(SchoolClass).all():
         if not school_class.has_source:
@@ -87,7 +88,7 @@ def run_all(cipher, now=None, today=None, window_days=21,
         if not may_fetch_automatically(school_class.last_fetch_at, now):
             continue
         if fetch_class(school_class, cipher, today=today,
-                       window_days=window_days, fetcher=fetcher):
+                       window_days=window_days, fetcher=fetcher, zone=zone):
             geholt += 1
     return geholt
 
@@ -99,7 +100,7 @@ def main() -> None:
         zone = app.config["TIMEZONE"]
         run_all(app.extensions["cipher"],
                 now=local_now(zone), today=local_today(zone),
-                window_days=app.config["FETCH_WINDOW_DAYS"])
+                window_days=app.config["FETCH_WINDOW_DAYS"], zone=zone)
 
 
 if __name__ == "__main__":

@@ -113,7 +113,8 @@ def index():
 @login_required
 def refresh():
     cipher = current_app.extensions["cipher"]
-    jetzt = local_now(current_app.config["TIMEZONE"])
+    zone = current_app.config["TIMEZONE"]
+    jetzt = local_now(zone)
     geholt, gesperrt = 0, []
     for school_class in _own_classes():
         if not school_class.has_source:
@@ -122,7 +123,7 @@ def refresh():
             gesperrt.append((school_class.name,
                              cooldown_remaining(school_class.last_fetch_at, jetzt)))
             continue
-        fetch_class(school_class, cipher)
+        fetch_class(school_class, cipher, zone=zone)
         geholt += 1
 
     if geholt:
