@@ -75,8 +75,13 @@ am Nutzerkonto). Für ein laufendes System in dieser Reihenfolge vorgehen:
 2. **Code einspielen** (neuen Branch/Release auschecken, Abhängigkeiten
    aktualisieren: `pip install -r requirements.txt`).
 3. **Tests laufen lassen:** `.venv/bin/pytest` — erst danach weiter.
-4. **Migration ausführen:** `flask --app app upgrade-db          # fehlende Spalten nachtragen
-   flask --app app migrate-to-classes`. Der Befehl
+4. **Schema und Daten migrieren:**
+   ```
+   flask --app app upgrade-db            # trägt fehlende Spalten nach
+   flask --app app migrate-to-classes    # überführt die Konten
+   ```
+   `upgrade-db` ist mehrfach ausführbar und nach jedem Update sinnvoll.
+   `migrate-to-classes`
    überführt bestehende WebUntis-Konten in Klassenquellen samt
    Mitgliedschaft und legt anschließend die Tabelle `lessons` mit dem neuen
    Schema neu an (die Stunden sind wegwerfbar, der nächste Abruf füllt sie
