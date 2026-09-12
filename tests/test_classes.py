@@ -289,3 +289,45 @@ def test_abgelaufenes_token_wird_abgewiesen(app, client, user, monkeypatch):
         "name": "FI42", "spenden": "ja"}, follow_redirects=True)
     assert db.session.query(SchoolClass).count() == 0
     assert resp.status_code == 200
+
+
+def _beitritt(client, spenden=""):
+    """Vollstaendiger Beitritt zu FI42 ueber den regulaeren Weg."""
+    token = _join_und_token(client)
+    return client.post("/classes/choose", data={
+        "token": token, "password": "geheim", "untis_class_id": "7",
+        "name": "FI42", "spenden": spenden}, follow_redirects=True)
+
+
+# --- Zeitstempel fuer verlassene Klassen -------------------------------------
+
+def test_austritt_der_letzten_person_vermerkt_den_zeitpunkt(app, client, user, monkeypatch):
+    _patch_verify(monkeypatch)
+    _beitritt(client, spenden="ja")
+    k = db.session.query(SchoolClass).one()
+    assert k.members_left_at is None
+    client.post(f"/classes/{k.id}/leave", follow_redirects=True)
+    k = db.session.get(SchoolClass, k.id)
+    assert k.members_left_at is not None
+
+
+def test_austritt_bei_verbleibenden_mitgliedern_vermerkt_nichts(app, client, user, monkeypatch):
+    _patch_verify(monkeypatch)
+    _beitritt(client, spenden="ja")
+    k = db.session.query(SchoolClass).one()
+    zweiter = User(email="zweit@b.de", confirmed=True); zweiter.set_password("geheim123")
+    db.session.add(zweiter); db.session.commit()
+    db.session.add(Membership(user_id=zweiter.id, class_id=k.id)); db.session.commit()
+    client.post(f"/classes/{k.id}/leave", follow_redirects=True)
+    k = db.session.get(SchoolClass, k.id)
+    assert k.members_left_at is None      # es liest ja noch jemand mit
+
+
+def test_wiedereintritt_loescht_den_zeitpunkt(app, client, user, monkeypatch):
+    _patch_verify(monkeypatch)
+    _beitritt(client, spenden="ja")
+    k = db.session.query(SchoolClass).one()
+    client.post(f"/classes/{k.id}/leave", follow_redirects=True)
+    assert db.session.get(SchoolClass, k.id).members_left_at is not None
+    _beitritt(client, spenden="")
+    assert db.session.get(SchoolClass, k.id).members_left_at is None

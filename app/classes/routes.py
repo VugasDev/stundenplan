@@ -7,6 +7,7 @@ from app.extensions import db, limiter
 from app.models import SchoolClass, Membership, Lesson
 from app.classes.forms import JoinForm
 from app.verify import verify_and_list_classes
+from app.zeit import local_now
 
 bp = Blueprint("classes", __name__)
 
@@ -143,6 +144,8 @@ def choose():
                  .filter_by(user_id=current_user.id, class_id=school_class.id).first())
     if vorhanden is None:
         db.session.add(Membership(user_id=current_user.id, class_id=school_class.id))
+    # Ein Beitritt hebt eine laufende Schonfrist auf — die Klasse wird gelesen.
+    school_class.members_left_at = None
     db.session.commit()
 
     if school_class.has_source:
@@ -184,6 +187,15 @@ def leave(class_id):
     if m is None:
         abort(404)
     db.session.delete(m)
+    db.session.flush()
+    # War das die letzte Mitgliedschaft, beginnt die Schonfrist: nach ihrem
+    # Ablauf wird die Klasse nicht mehr abgerufen, weil sie niemand mehr liest.
+    verbleibend = (db.session.query(Membership)
+                   .filter_by(class_id=class_id).count())
+    if verbleibend == 0:
+        school_class = db.session.get(SchoolClass, class_id)
+        if school_class is not None:
+            school_class.members_left_at = local_now(current_app.config["TIMEZONE"])
     db.session.commit()
     flash("Klasse entfernt.", "success")
     return redirect(url_for("classes.list_classes"))

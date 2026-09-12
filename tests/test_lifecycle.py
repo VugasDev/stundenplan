@@ -75,3 +75,101 @@ def test_aufloesung_liefert_immer_genau_ein_jahr_je_ziffer():
     assert len(jahre) == 10
     # Fenster: neun Jahre zurueck bis ein Jahr voraus.
     assert min(jahre) == 2018 and max(jahre) == 2027
+
+
+# --- Ende des Bildungsgangs ---------------------------------------------------
+
+from app.lifecycle import course_ended, STANDARD_LAUFZEITEN  # noqa: E402
+
+LAUFZEITEN = {"FI": 3, "FIT": 4, "FET": 4, "FMT": 4}
+
+
+def test_dreijaehrige_klasse_endet_zum_schuljahresende():
+    # FI42: 2024 eingeschult, drei Jahre -> laeuft bis Sommer 2027.
+    assert course_ended("FI42", datetime.date(2027, 7, 1), LAUFZEITEN) is False
+    assert course_ended("FI42", datetime.date(2027, 8, 1), LAUFZEITEN) is True
+
+
+def test_vierjaehrige_klasse_laeuft_ein_jahr_laenger():
+    # FIT61: 2026 eingeschult, vier Jahre -> bis Sommer 2030.
+    assert course_ended("FIT61", datetime.date(2030, 7, 1), LAUFZEITEN) is False
+    assert course_ended("FIT61", datetime.date(2030, 8, 1), LAUFZEITEN) is True
+
+
+def test_laufende_klasse_ist_nicht_beendet():
+    assert course_ended("FI42", datetime.date(2026, 9, 12), LAUFZEITEN) is False
+    assert course_ended("FIT61", datetime.date(2026, 9, 12), LAUFZEITEN) is False
+
+
+def test_unbekanntes_kuerzel_ergibt_keine_aussage():
+    """Ohne hinterlegte Laufzeit wird nicht geraten — die Klasse laeuft weiter."""
+    assert course_ended("AVV41", datetime.date(2026, 9, 12), LAUFZEITEN) is None
+    assert course_ended("B62", datetime.date(2026, 9, 12), LAUFZEITEN) is None
+
+
+def test_abweichender_name_ergibt_keine_aussage():
+    assert course_ended("Beratung", datetime.date(2026, 9, 12), LAUFZEITEN) is None
+    assert course_ended("BEL1", datetime.date(2026, 9, 12), LAUFZEITEN) is None
+
+
+def test_die_belegten_kuerzel_sind_vorbelegt():
+    # Gemessen am 2026-09-12: FI ist Berufsschule, FIT/FET/FMT sind Fachschule.
+    assert STANDARD_LAUFZEITEN["FI"] == 3
+    assert STANDARD_LAUFZEITEN["FIT"] == 4
+    assert STANDARD_LAUFZEITEN["FET"] == 4
+    assert STANDARD_LAUFZEITEN["FMT"] == 4
+
+
+# --- Niemand liest die Klasse mehr -------------------------------------------
+
+from app.lifecycle import abandoned, SCHONFRIST_TAGE  # noqa: E402
+
+
+class _Klasse:
+    """Traegt nur, was fuer die Entscheidung noetig ist."""
+    def __init__(self, name="FI42", members_left_at=None):
+        self.name = name
+        self.members_left_at = members_left_at
+
+
+def test_klasse_mit_mitgliedern_ist_nicht_verlassen():
+    assert abandoned(_Klasse(), datetime.date(2026, 9, 12)) is False
+
+
+def test_schonfrist_von_sieben_tagen_wird_eingehalten():
+    assert SCHONFRIST_TAGE == 7
+    weg_seit = datetime.date(2026, 9, 5)
+    assert abandoned(_Klasse(members_left_at=weg_seit),
+                     datetime.date(2026, 9, 11)) is False
+    assert abandoned(_Klasse(members_left_at=weg_seit),
+                     datetime.date(2026, 9, 12)) is True
+
+
+def test_wiedereintritt_hebt_die_schonfrist_auf():
+    # Der Zeitstempel wird beim Beitritt zurueckgesetzt; ohne ihn laeuft nichts ab.
+    assert abandoned(_Klasse(members_left_at=None),
+                     datetime.date(2030, 1, 1)) is False
+
+
+# --- Zusammenfuehrung: wird abgerufen oder nicht? ----------------------------
+
+from app.lifecycle import dormant_reason  # noqa: E402
+
+
+def test_laufende_klasse_mit_mitgliedern_wird_abgerufen():
+    assert dormant_reason(_Klasse(), datetime.date(2026, 9, 12), LAUFZEITEN) is None
+
+
+def test_verlassene_klasse_wird_stillgelegt():
+    k = _Klasse(members_left_at=datetime.date(2026, 9, 1))
+    assert dormant_reason(k, datetime.date(2026, 9, 12), LAUFZEITEN) == "verlassen"
+
+
+def test_abgelaufener_bildungsgang_wird_stillgelegt():
+    assert dormant_reason(_Klasse("FI42"), datetime.date(2027, 8, 1),
+                          LAUFZEITEN) == "beendet"
+
+
+def test_unbekanntes_kuerzel_mit_mitgliedern_laeuft_weiter():
+    assert dormant_reason(_Klasse("AVV41"), datetime.date(2040, 1, 1),
+                          LAUFZEITEN) is None

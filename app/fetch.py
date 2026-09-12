@@ -7,6 +7,7 @@ from app.models import SchoolClass, Lesson
 from app.lessons import normalize
 from app.webuntis_client import fetch_class_lessons
 from app.schedule import may_fetch_automatically
+from app.lifecycle import dormant_reason
 from app.zeit import local_today, local_now, STANDARD_ZONE
 
 
@@ -78,12 +79,21 @@ def fetch_class(school_class, cipher, today=None, window_days=21,
 
 
 def run_all(cipher, now=None, today=None, window_days=21,
-            fetcher=fetch_class_lessons, zone=STANDARD_ZONE) -> int:
-    """Automatiklauf: holt nur faellige Klassen und nur tagsueber."""
+            fetcher=fetch_class_lessons, zone=STANDARD_ZONE,
+            laufzeiten=None) -> int:
+    """Automatiklauf: holt nur faellige Klassen und nur tagsueber.
+
+    Stillgelegte Klassen bleiben aussen vor — verlassene und solche, deren
+    Bildungsgang abgelaufen ist. Ihr Plan raeumt sich ueber die Loeschfristen
+    von selbst ab, weil nichts mehr nachkommt.
+    """
     now = now or local_now(zone)
+    today = today or local_today(zone)
     geholt = 0
     for school_class in db.session.query(SchoolClass).all():
         if not school_class.has_source:
+            continue
+        if dormant_reason(school_class, today, laufzeiten) is not None:
             continue
         if not may_fetch_automatically(school_class.last_fetch_at, now):
             continue
