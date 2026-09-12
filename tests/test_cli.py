@@ -137,6 +137,36 @@ def test_migration_ist_mehrfach_ausfuehrbar_ohne_doppel_eintraege(app):
     assert k.donor_user_id == donor_nach_erstem_lauf
 
 
+def test_migrate_to_classes_legt_lessons_mit_neuem_schema_neu_an(app):
+    """Regression fuer K2: eine Bestandsdatenbank hat noch die alte
+    lessons-Struktur mit NOT-NULL-Spalte account_id statt class_id.
+    db.create_all() allein aendert bestehende Tabellen nicht — der Befehl
+    muss die Tabelle deshalb verwerfen und neu anlegen."""
+    from app.extensions import db
+
+    db.session.execute(db.text("DROP TABLE lessons"))
+    db.session.execute(db.text(
+        "CREATE TABLE lessons ("
+        "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+        "account_id INTEGER NOT NULL, "
+        "date DATE NOT NULL, "
+        "start_time TIME NOT NULL, end_time TIME NOT NULL, "
+        "subject VARCHAR(100) NOT NULL, room VARCHAR(100) NOT NULL DEFAULT '', "
+        "teacher VARCHAR(255) NOT NULL DEFAULT '', "
+        "status VARCHAR(20) NOT NULL DEFAULT 'normal', "
+        "note VARCHAR(255) NOT NULL DEFAULT '')"
+    ))
+    db.session.commit()
+
+    runner = app.test_cli_runner()
+    result = runner.invoke(args=["migrate-to-classes"])
+    assert result.exit_code == 0, result.output
+
+    # Die neue Spalte ist abfragbar -> das alte Schema wurde ersetzt.
+    db.session.execute(db.text("SELECT class_id FROM lessons")).all()
+    assert "webuntis_accounts" in result.output
+
+
 def test_migration_ohne_tabelle_meldet_leeres_ergebnis(app):
     """Wenn nie ein altes Konto angelegt wurde, existiert die Tabelle nicht."""
     from app.cli import migrate_accounts_to_classes

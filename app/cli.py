@@ -23,10 +23,32 @@ def register_cli(app):
 
     @app.cli.command("migrate-to-classes")
     def migrate_to_classes():
-        """Ueberfuehrt bestehende Zugaenge in Klassenquellen."""
+        """Ueberfuehrt bestehende Zugaenge in Klassenquellen.
+
+        Reihenfolge wichtig: erst die Altdaten aus webuntis_accounts lesen und
+        nach school_classes/memberships ueberfuehren, danach erst lessons
+        verwerfen und neu anlegen — sonst waeren die Altdaten weg, bevor sie
+        gelesen wurden.
+        """
         db.create_all()
         zuordnung = migrate_accounts_to_classes()
         click.echo(f"{len(zuordnung)} Zugang/Zugänge überführt.")
+
+        # lessons.account_id war NOT NULL und heisst jetzt class_id;
+        # db.create_all() aendert bestehende Tabellen nicht. Die Stunden sind
+        # per Definition wegwerfbar (der naechste Abruf bringt sie binnen 90
+        # Minuten zurueck) — die Tabelle wird deshalb verworfen und mit dem
+        # neuen Schema neu angelegt, statt sie muehsam zu migrieren.
+        if db.inspect(db.engine).has_table("lessons"):
+            db.session.execute(db.text("DROP TABLE lessons"))
+            db.session.commit()
+        db.create_all()
+        click.echo("Tabelle 'lessons' mit dem neuen Schema (class_id) neu "
+                   "angelegt. Der naechste Abruf fuellt sie binnen 90 Minuten "
+                   "wieder.")
+        click.echo("Hinweis: Die Tabelle 'webuntis_accounts' enthält weiterhin "
+                   "verschlüsselte Zugangsdaten. Nach erfolgreicher Prüfung "
+                   "von Hand entfernen.")
 
 
 def migrate_accounts_to_classes(lister=None, cipher=None) -> dict:
