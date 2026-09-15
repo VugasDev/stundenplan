@@ -18,8 +18,8 @@
         {{ jetzt_linie(axis_daten, jetzt_sichtbar) }}
         {{ axis_col(axis) }}
         <div class="tt-col">
-          {% for b, top, height in eintraege %}
-            {{ block_el(b, labels[b.class_id], top, height) }}
+          {% for b, top, height, lane, lanes in eintraege %}
+            {{ block_el(b, labels[b.class_id], top, height, lane, lanes) }}
           {% endfor %}
         </div>
       </div>

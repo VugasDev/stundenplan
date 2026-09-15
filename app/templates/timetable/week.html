@@ -28,8 +28,8 @@
         {{ axis_col(axis) }}
         {% for tag, eintraege in spalten %}
           <div class="tt-col {{ 'heute' if tag == heute }}">
-            {% for b, top, height in eintraege %}
-              {{ block_el(b, labels[b.class_id], top, height, kompakt=true) }}
+            {% for b, top, height, lane, lanes in eintraege %}
+              {{ block_el(b, labels[b.class_id], top, height, lane, lanes, kompakt=true) }}
             {% endfor %}
           </div>
         {% endfor %}

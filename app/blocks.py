@@ -55,6 +55,50 @@ def merge_lessons(lessons) -> list[Block]:
     return blocks
 
 
+# --- Spuren ------------------------------------------------------------------
+
+def _lane_order(block):
+    # Bei gleichem Beginn zuerst der Entfall: er steht links, sein Ersatz rechts.
+    return (block.date, block.start_time, block.status != "cancelled",
+            block.end_time, block.class_id)
+
+
+def assign_lanes(blocks) -> list[tuple[Block, int, int]]:
+    """Verteilt sich ueberschneidende Bloecke nebeneinander auf Spuren.
+
+    Rueckgabe je Block: (Block, Spur, Spurenzahl). Die Spurenzahl gilt fuer die
+    ganze zusammenhaengende Ueberschneidung, damit deren Bloecke gleich breit
+    sind; alles ausserhalb davon behaelt die volle Breite. Bloecke, die nur
+    aneinander grenzen, ueberschneiden sich nicht.
+    """
+    clusters: list[list[Block]] = []
+    cluster_end = None
+    for block in sorted(blocks, key=_lane_order):
+        if (clusters and block.date == clusters[-1][0].date
+                and block.start_time < cluster_end):
+            clusters[-1].append(block)
+            cluster_end = max(cluster_end, block.end_time)
+        else:
+            clusters.append([block])
+            cluster_end = block.end_time
+
+    result: list[tuple[Block, int, int]] = []
+    for cluster in clusters:
+        lane_ends: list[datetime.time] = []   # Ende des letzten Blocks je Spur
+        lanes: list[int] = []
+        for block in cluster:
+            lane = next((i for i, ende in enumerate(lane_ends)
+                         if ende <= block.start_time), len(lane_ends))
+            if lane == len(lane_ends):
+                lane_ends.append(block.end_time)
+            else:
+                lane_ends[lane] = block.end_time
+            lanes.append(lane)
+        result.extend((block, lane, len(lane_ends))
+                      for block, lane in zip(cluster, lanes))
+    return result
+
+
 # --- Zeitachse ---------------------------------------------------------------
 
 PX_PER_MIN = 1.1          # Hoehe einer Unterrichtsminute

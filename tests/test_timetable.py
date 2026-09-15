@@ -186,6 +186,20 @@ def test_entfall_und_vertretung_werden_unterschiedlich_markiert(app, client):
     assert b"tt-substitution" in resp.data
 
 
+def test_entfall_und_ersatz_werden_nebeneinander_gezeichnet(app, client):
+    u, k = _login_user_with_lessons(app, client)
+    db.session.add_all([
+        _lesson(k, "2026-09-16", "07:30", "09:00", subject="AUS", status="cancelled"),
+        _lesson(k, "2026-09-16", "07:30", "09:00", subject="ERSATZ", status="substitution"),
+    ])
+    db.session.commit()
+    for pfad in ("/?view=week&week=2026-09-14", "/?view=day&day=2026-09-16"):
+        resp = client.get(pfad)
+        # Linke und rechte Haelfte der Spalte statt zweimal volle Breite.
+        assert b"left:calc(0% + 2px); right:calc(50% + 2px)" in resp.data
+        assert b"left:calc(50% + 2px); right:calc(0% + 2px)" in resp.data
+
+
 def test_block_nennt_die_klasse(app, client):
     u, k = _login_user_with_lessons(app, client)
     resp = client.get("/?view=week&week=2026-09-07")
