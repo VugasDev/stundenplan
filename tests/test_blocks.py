@@ -159,6 +159,52 @@ def test_span_liefert_die_hoehe_eines_blocks():
     assert axis.span(datetime.time(7, 30), datetime.time(9, 0)) == pytest.approx(90 * PX_PER_MIN)
 
 
+# --- Spuren fuer ueberlappende Bloecke ---------------------------------------
+
+from app.blocks import assign_lanes  # noqa: E402
+
+
+def _spuren(blocks):
+    return [(b.subject, lane, lanes) for b, lane, lanes in assign_lanes(blocks)]
+
+
+def test_ohne_ueberschneidung_nimmt_jeder_block_die_ganze_breite():
+    assert _spuren([B("07:30", "09:00", subject="ITD"),
+                    B("09:25", "10:55", subject="SWD")]) == [("ITD", 0, 1), ("SWD", 0, 1)]
+
+
+def test_entfall_und_ersatz_zur_selben_zeit_stehen_nebeneinander():
+    # WebUntis liefert die entfallene Stunde und die Vertretung als zwei Stunden.
+    spuren = _spuren([B("07:30", "09:00", subject="ERSATZ", status="substitution"),
+                      B("07:30", "09:00", subject="AUS", status="cancelled")])
+    # Der Entfall steht links, sein Ersatz rechts daneben.
+    assert spuren == [("AUS", 0, 2), ("ERSATZ", 1, 2)]
+
+
+def test_aneinander_grenzende_bloecke_ueberschneiden_sich_nicht():
+    assert _spuren([B("07:30", "08:15", subject="ITD"),
+                    B("08:15", "09:00", subject="SWD")]) == [("ITD", 0, 1), ("SWD", 0, 1)]
+
+
+def test_frei_gewordene_spur_wird_wiederverwendet():
+    # B ueberlappt A und C, A und C beruehren sich nur: zwei Spuren reichen.
+    assert _spuren([B("07:30", "09:00", subject="A"),
+                    B("08:15", "09:45", subject="B"),
+                    B("09:00", "10:30", subject="C")]) == [("A", 0, 2), ("B", 1, 2), ("C", 0, 2)]
+
+
+def test_spurenzahl_gilt_nur_innerhalb_einer_ueberschneidung():
+    spuren = _spuren([B("07:30", "09:00", subject="AUS", status="cancelled"),
+                      B("07:30", "09:00", subject="ERSATZ", status="substitution"),
+                      B("13:00", "14:30", subject="EVP")])
+    assert spuren[2] == ("EVP", 0, 1)
+
+
+def test_gleiche_zeit_an_verschiedenen_tagen_ist_keine_ueberschneidung():
+    assert _spuren([B("07:30", "09:00", subject="DI", day="2026-09-16"),
+                    B("07:30", "09:00", subject="MI", day="2026-09-17")]) == [("DI", 0, 1), ("MI", 0, 1)]
+
+
 # --- Agenda ------------------------------------------------------------------
 
 from app.blocks import agenda_view  # noqa: E402

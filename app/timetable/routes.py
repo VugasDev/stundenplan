@@ -8,7 +8,7 @@ from flask_login import login_required, current_user
 from app.extensions import db, limiter
 from app.models import SchoolClass, Membership, Lesson
 from app.fetch import fetch_class
-from app.blocks import merge_lessons, build_axis, agenda_view, axis_payload
+from app.blocks import merge_lessons, build_axis, agenda_view, axis_payload, assign_lanes
 from app.schedule import may_fetch_manually, cooldown_remaining, age_in_minutes
 from app.zeit import local_now, local_today
 
@@ -47,9 +47,9 @@ def _lessons_between(class_ids, von: datetime.date, bis: datetime.date):
 
 
 def _positioned(blocks, axis):
-    """Ergaenzt jeden Block um seine Lage auf der Achse."""
-    return [(b, axis.y(b.start_time), axis.span(b.start_time, b.end_time))
-            for b in blocks]
+    """Ergaenzt jeden Block um seine Lage auf der Achse und seine Spur."""
+    return [(b, axis.y(b.start_time), axis.span(b.start_time, b.end_time), lane, lanes)
+            for b, lane, lanes in assign_lanes(blocks)]
 
 
 @bp.route("/")
