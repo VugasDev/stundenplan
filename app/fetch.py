@@ -80,7 +80,7 @@ def fetch_class(school_class, cipher, today=None, window_days=21,
 
 def run_all(cipher, now=None, today=None, window_days=21,
             fetcher=fetch_class_lessons, zone=STANDARD_ZONE,
-            laufzeiten=None) -> int:
+            laufzeiten=None, force=False) -> int:
     """Automatiklauf: holt nur faellige Klassen und nur tagsueber.
 
     Stillgelegte Klassen bleiben aussen vor — verlassene und solche, deren
@@ -95,7 +95,9 @@ def run_all(cipher, now=None, today=None, window_days=21,
             continue
         if dormant_reason(school_class, today, laufzeiten) is not None:
             continue
-        if not may_fetch_automatically(school_class.last_fetch_at, now):
+        # force ueberspringt nur die Faelligkeit, nie die Stilllegung —
+        # eine verlassene Klasse liest ohnehin niemand mehr.
+        if not force and not may_fetch_automatically(school_class.last_fetch_at, now):
             continue
         if fetch_class(school_class, cipher, today=today,
                        window_days=window_days, fetcher=fetcher, zone=zone):

@@ -20,8 +20,25 @@ def default_session(credentials: dict):
     )
 
 
-def _join_names(elements) -> str:
-    return ", ".join(e.name for e in elements) if elements else ""
+def _namen(periode, attribut: str) -> str:
+    """Namen einer Elementliste der Periode — oder leer, wenn sie fehlt.
+
+    Abgesichert wird bewusst schon der *Attributzugriff*, nicht erst das
+    Iterieren: `subjects`, `rooms` und `teachers` sind bei webuntis Properties,
+    die die hinterlegten IDs nachschlagen. Traegt WebUntis bei einer Vertretung
+    mit entferntem Lehrer die ID 0 ein (Rohdaten: 'te': [{'id': 0, 'orgid': …}]),
+    findet die Bibliothek dazu keinen Datensatz und wirft beim Lesen des
+    Attributs IndexError.
+
+    Ohne diese Absicherung riss eine einzige solche Stunde den gesamten Abruf
+    der Klasse mit — und ausgerechnet Vertretungen sind die Stunden, die man
+    sehen will. Lieber die einzelne Angabe weglassen als den ganzen Plan.
+    """
+    try:
+        elemente = getattr(periode, attribut)
+        return ", ".join(e.name for e in elemente) if elemente else ""
+    except Exception:
+        return ""
 
 
 def fetch_classes(credentials: dict, session_factory=default_session) -> list[UntisClass]:
@@ -49,9 +66,9 @@ def fetch_class_lessons(credentials: dict, untis_class_id: int,
         return [
             RawLesson(
                 start=p.start, end=p.end,
-                subject=_join_names(p.subjects),
-                room=_join_names(p.rooms),
-                teacher=_join_names(p.teachers),
+                subject=_namen(p, "subjects"),
+                room=_namen(p, "rooms"),
+                teacher=_namen(p, "teachers"),
                 code=p.code,
             )
             for p in periods
