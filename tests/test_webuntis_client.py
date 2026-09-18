@@ -103,22 +103,32 @@ def test_fetch_class_lessons_logs_out_even_on_error():
 
 # --- Unvollstaendige Angaben einer Periode ------------------------------------
 
-class _KaputteListe:
+class _WirftBeimZugriff:
     """Bildet nach, was die Bibliothek bei einer Vertretung mit entferntem
-    Lehrer tut: Der Zugriff auf die Liste selbst wirft IndexError, weil die
-    Rohdaten die Lehrer-ID 0 tragen und dazu kein Lehrer existiert."""
-    def __iter__(self):
+    Lehrer tut.
+
+    Entscheidend: Schon das *Lesen* des Attributs wirft, nicht erst das
+    Iterieren — `teachers` ist bei webuntis eine Property, die die Lehrer-ID 0
+    nachschlaegt, keinen Treffer findet und dabei IndexError wirft. Ein Test,
+    der nur das Iterieren scheitern laesst, geht an der Ursache vorbei.
+    """
+    def __get__(self, obj, typ=None):
         raise IndexError("list index out of range")
 
 
-class _PeriodeMitLuecke:
-    def __init__(self, subjects=None, rooms=None, teachers=None, code=None):
-        self.start = datetime.datetime(2026, 9, 30, 13, 0)
-        self.end = datetime.datetime(2026, 9, 30, 13, 45)
-        self.subjects = subjects if subjects is not None else [_Kuerzel("SWD")]
-        self.rooms = rooms if rooms is not None else [_Kuerzel("K205")]
-        self.teachers = teachers if teachers is not None else [_Kuerzel("MUE")]
-        self.code = code
+def _periode_mit_luecke(kaputt=(), subject="SWD"):
+    """Periode, bei der die genannten Attribute beim Lesen scheitern."""
+    felder = {
+        "start": datetime.datetime(2026, 9, 30, 13, 0),
+        "end": datetime.datetime(2026, 9, 30, 13, 45),
+        "subjects": [_Kuerzel(subject)],
+        "rooms": [_Kuerzel("K205")],
+        "teachers": [_Kuerzel("MUE")],
+        "code": None,
+    }
+    for name in kaputt:
+        felder[name] = _WirftBeimZugriff()      # als Klassenattribut = Property
+    return type("Periode", (), felder)()
 
 
 class _Kuerzel:
@@ -134,7 +144,7 @@ class _SessionMitPerioden:
 
 def test_stunde_ohne_lesbaren_lehrer_faellt_nicht_aus():
     """Eine einzelne kaputte Angabe darf nicht den ganzen Klassenplan kosten."""
-    p = _PeriodeMitLuecke(teachers=_KaputteListe())
+    p = _periode_mit_luecke(kaputt=["teachers"])
     ergebnis = fetch_class_lessons({}, 7, datetime.date(2026, 9, 30),
                                    datetime.date(2026, 10, 1),
                                    session_factory=lambda c: _SessionMitPerioden([p]))
@@ -145,9 +155,9 @@ def test_stunde_ohne_lesbaren_lehrer_faellt_nicht_aus():
 
 
 def test_eine_kaputte_stunde_reisst_die_anderen_nicht_mit():
-    perioden = [_PeriodeMitLuecke(subjects=[_Kuerzel("ITD")]),
-                _PeriodeMitLuecke(teachers=_KaputteListe(), subjects=[_Kuerzel("KAPUTT")]),
-                _PeriodeMitLuecke(subjects=[_Kuerzel("EVP")])]
+    perioden = [_periode_mit_luecke(subject="ITD"),
+                _periode_mit_luecke(kaputt=["teachers"], subject="KAPUTT"),
+                _periode_mit_luecke(subject="EVP")]
     ergebnis = fetch_class_lessons({}, 7, datetime.date(2026, 9, 30),
                                    datetime.date(2026, 10, 1),
                                    session_factory=lambda c: _SessionMitPerioden(perioden))
@@ -155,7 +165,7 @@ def test_eine_kaputte_stunde_reisst_die_anderen_nicht_mit():
 
 
 def test_auch_fach_und_raum_werden_abgesichert():
-    p = _PeriodeMitLuecke(subjects=_KaputteListe(), rooms=_KaputteListe())
+    p = _periode_mit_luecke(kaputt=["subjects", "rooms"])
     ergebnis = fetch_class_lessons({}, 7, datetime.date(2026, 9, 30),
                                    datetime.date(2026, 10, 1),
                                    session_factory=lambda c: _SessionMitPerioden([p]))
