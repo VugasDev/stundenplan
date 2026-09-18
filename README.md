@@ -206,4 +206,3 @@ kein fremdes Konto übernehmen.
 ## Lizenz
 
 MIT — siehe [LICENSE](LICENSE).
-# Schutztest — wird verworfen
