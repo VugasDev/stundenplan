@@ -21,7 +21,19 @@ def default_session(credentials: dict):
 
 
 def _join_names(elements) -> str:
-    return ", ".join(e.name for e in elements) if elements else ""
+    """Namen einer Elementliste, auch wenn die Bibliothek daran scheitert.
+
+    WebUntis traegt bei einer Vertretung mit entferntem Lehrer die ID 0 ein.
+    Die Bibliothek sucht dann einen Lehrer mit dieser ID, findet keinen und
+    wirft beim Zugriff IndexError. Ohne Absicherung reisst eine einzige solche
+    Stunde den gesamten Klassenabruf mit — und ausgerechnet Vertretungen sind
+    die Stunden, die man sehen will.
+    """
+    try:
+        return ", ".join(e.name for e in elements) if elements else ""
+    except Exception:
+        # Lieber die Angabe weglassen als den ganzen Plan verlieren.
+        return ""
 
 
 def fetch_classes(credentials: dict, session_factory=default_session) -> list[UntisClass]:
