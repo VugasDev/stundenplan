@@ -22,6 +22,10 @@ class User(UserMixin, db.Model):
     confirmed = db.Column(db.Boolean, nullable=False, default=False)
     created_at = db.Column(db.DateTime, nullable=False, default=utcnow)
 
+    # Wird ausschliesslich ueber die Kommandozeile gesetzt (flask make-admin).
+    # Wer Serverzugang hat, ist ohnehin maechtiger als jeder Admin im Browser.
+    is_admin = db.Column(db.Boolean, nullable=False, default=False)
+
     memberships = db.relationship(
         "Membership", back_populates="user", cascade="all, delete-orphan",
     )
@@ -71,6 +75,43 @@ class SchoolClass(db.Model):
     def has_source(self) -> bool:
         """Kann diese Klasse abgerufen werden?"""
         return bool(self.password_encrypted)
+
+
+class InviteCode(db.Model):
+    """Einladungscode fuer die Registrierung.
+
+    Ein Code gilt fuer eine ganze Gruppe: beliebig oft einloesbar, sofern kein
+    Limit gesetzt ist, und bis zu einem optionalen Ablaufdatum. Zurueckziehen
+    geht jederzeit — geloescht wird nichts, damit nachvollziehbar bleibt, wie
+    oft ein Code benutzt wurde.
+    """
+    __tablename__ = "invite_codes"
+    id = db.Column(db.Integer, primary_key=True)
+    code = db.Column(db.String(32), unique=True, nullable=False, index=True)
+    note = db.Column(db.String(120), nullable=False, default="")
+    max_uses = db.Column(db.Integer, nullable=True)      # None = unbegrenzt
+    uses = db.Column(db.Integer, nullable=False, default=0)
+    expires_at = db.Column(db.Date, nullable=True)       # None = kein Ablauf
+    revoked = db.Column(db.Boolean, nullable=False, default=False)
+    created_at = db.Column(db.DateTime, nullable=False, default=utcnow)
+
+    def is_valid(self, today: datetime.date) -> bool:
+        """Darf dieser Code gerade eingeloest werden?"""
+        if self.revoked:
+            return False
+        if self.max_uses is not None and self.uses >= self.max_uses:
+            return False
+        # Am Ablauftag selbst gilt er noch.
+        if self.expires_at is not None and today > self.expires_at:
+            return False
+        return True
+
+    @property
+    def nutzung(self) -> str:
+        """Benutzt im Verhaeltnis zum Limit — fuer die Anzeige."""
+        if self.max_uses is None:
+            return f"{self.uses} (unbegrenzt)"
+        return f"{self.uses} / {self.max_uses}"
 
 
 class Membership(db.Model):

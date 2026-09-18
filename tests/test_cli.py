@@ -214,3 +214,48 @@ def test_upgrade_db_ist_mehrfach_ausfuehrbar(app):
     from app.extensions import db
     add_missing_columns(); db.session.commit()
     assert add_missing_columns() == []      # beim zweiten Lauf nichts mehr zu tun
+
+
+# --- Adminrechte ueber die Kommandozeile --------------------------------------
+
+def test_make_admin_setzt_das_kennzeichen(app):
+    from app.cli import set_admin
+    from app.models import User
+    from app.extensions import db
+    u = User(email="chef@b.de", confirmed=True); u.set_password("geheim123")
+    db.session.add(u); db.session.commit()
+    assert set_admin("chef@b.de", True) is True
+    assert db.session.get(User, u.id).is_admin is True
+
+
+def test_revoke_admin_nimmt_das_kennzeichen_zurueck(app):
+    from app.cli import set_admin
+    from app.models import User
+    from app.extensions import db
+    u = User(email="chef@b.de", confirmed=True, is_admin=True)
+    u.set_password("geheim123")
+    db.session.add(u); db.session.commit()
+    assert set_admin("chef@b.de", False) is True
+    assert db.session.get(User, u.id).is_admin is False
+
+
+def test_unbekannte_adresse_meldet_fehlschlag(app):
+    from app.cli import set_admin
+    assert set_admin("gibtesnicht@b.de", True) is False
+
+
+def test_adresse_wird_ohne_ruecksicht_auf_grossschreibung_gefunden(app):
+    from app.cli import set_admin
+    from app.models import User
+    from app.extensions import db
+    u = User(email="chef@b.de", confirmed=True); u.set_password("geheim123")
+    db.session.add(u); db.session.commit()
+    assert set_admin("Chef@B.de", True) is True
+
+
+def test_upgrade_db_traegt_auch_die_adminspalte_nach(app):
+    """Regression: is_admin und die Codetabelle kommen zu einer bestehenden
+    Installation hinzu."""
+    from app.cli import NACHGETRAGENE_SPALTEN
+    spalten = {(t, s) for t, s, _ in NACHGETRAGENE_SPALTEN}
+    assert ("users", "is_admin") in spalten

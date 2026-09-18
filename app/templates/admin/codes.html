@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Einladungscodes{% endblock %}
+{% block content %}
+<p class="admin-zurueck"><a href="{{ url_for('admin.index') }}">← Verwaltung</a></p>
+<h1>Einladungscodes</h1>
+
+<form method="post" class="card">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <label>Wofür? <input type="text" name="note" maxlength="120"
+         placeholder="z.B. Klasse AB42" required></label>
+  <label>Wie oft einlösbar? <input type="number" name="max_uses" min="1"
+         placeholder="leer = unbegrenzt"></label>
+  <label>Gültig bis <input type="date" name="expires_at"></label>
+  <button type="submit">Code erstellen</button>
+</form>
+
+<table>
+  <thead><tr><th>Code</th><th>Wofür</th><th>Benutzt</th>
+             <th>Gültig bis</th><th>Zustand</th><th></th></tr></thead>
+  <tbody>
+  {% for c in codes %}
+    <tr {% if not c.is_valid(heute) %}class="admin-ungueltig"{% endif %}>
+      <td><code>{{ c.code }}</code></td>
+      <td>{{ c.note }}</td>
+      <td>{{ c.nutzung }}</td>
+      <td>{{ c.expires_at.strftime('%d.%m.%Y') if c.expires_at else "—" }}</td>
+      <td>
+        {% if c.revoked %}zurückgezogen
+        {% elif not c.is_valid(heute) %}abgelaufen oder erschöpft
+        {% else %}gültig{% endif %}
+      </td>
+      <td>
+        {% if not c.revoked %}
+        <form method="post" action="{{ url_for('admin.code_revoke', code_id=c.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit">Zurückziehen</button>
+        </form>
+        {% endif %}
+      </td>
+    </tr>
+  {% else %}
+    <tr><td colspan="6">Noch kein Code erstellt.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

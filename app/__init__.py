@@ -64,6 +64,9 @@ def create_app(config_object=None):
     from app.classes import bp as classes_bp
     app.register_blueprint(classes_bp)
 
+    from app.admin import bp as admin_bp
+    app.register_blueprint(admin_bp)
+
     from werkzeug.middleware.proxy_fix import ProxyFix
     app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 
