@@ -1,11 +1,13 @@
 {% extends "base.html" %}
+{% from "timetable/_macros.html" import detail_daten, detail_dialog %}
 {% block title %}Jetzt{% endblock %}
 {% block content %}
 {% include "timetable/_nav.html" %}
 
 <div class="tt" data-view="agenda">
   {% if agenda.current %}
-    <div class="ag-karte ag-laeuft tt-{{ agenda.current.status }}">
+    <button type="button" class="ag-karte ag-laeuft tt-{{ agenda.current.status }}"
+            {{ detail_daten(agenda.current, labels[agenda.current.class_id]) }}>
       <div class="ag-marke">Läuft gerade</div>
       <div class="ag-fach">{{ agenda.current.subject }}</div>
       <div class="ag-meta">
@@ -14,7 +16,12 @@
         {% if agenda.current.teacher %} · {{ agenda.current.teacher }}{% endif %}
         · {{ labels[agenda.current.class_id] }}
       </div>
-    </div>
+      {% if agenda.current.note %}<div class="ag-notiz">{{ agenda.current.note }}</div>{% endif %}
+    </button>
+    {% if agenda.current.video_url %}
+      <a class="ag-konferenz" href="{{ agenda.current.video_url }}"
+         target="_blank" rel="noopener noreferrer">Videokonferenz beitreten</a>
+    {% endif %}
   {% endif %}
 
   {% if agenda.feierabend %}
@@ -23,7 +30,8 @@
 
   {% if agenda.upcoming %}
     {% set naechster = agenda.upcoming[0] %}
-    <div class="ag-karte ag-naechste tt-{{ naechster.status }}">
+    <button type="button" class="ag-karte ag-naechste tt-{{ naechster.status }}"
+            {{ detail_daten(naechster, labels[naechster.class_id]) }}>
       <div class="ag-marke">{{ 'Danach' if agenda.current else 'Als Nächstes' }}</div>
       <div class="ag-fach">{{ naechster.subject }}</div>
       <div class="ag-meta">
@@ -34,20 +42,28 @@
       </div>
       {% if naechster.status == 'substitution' %}<span class="tt-badge">Vertretung</span>{% endif %}
       {% if naechster.status == 'cancelled' %}<span class="tt-badge">entfällt</span>{% endif %}
-    </div>
+      {% if naechster.note %}<div class="ag-notiz">{{ naechster.note }}</div>{% endif %}
+    </button>
+    {% if naechster.video_url %}
+      <a class="ag-konferenz" href="{{ naechster.video_url }}"
+         target="_blank" rel="noopener noreferrer">Videokonferenz beitreten</a>
+    {% endif %}
 
     {% if agenda.upcoming|length > 1 %}
       <div class="ag-rest">
         <h2>Danach heute noch</h2>
         {% for b in agenda.upcoming[1:] %}
-          <div class="ag-zeile tt-{{ b.status }}">
+          <button type="button" class="ag-zeile tt-{{ b.status }}"
+                  {{ detail_daten(b, labels[b.class_id]) }}>
             <span class="ag-zeit">{{ b.start_time.strftime('%H:%M') }}</span>
             <span class="ag-fach-klein">{{ b.subject }}</span>
             <span class="ag-meta-klein">
               {%- if b.room %}{{ b.room }} · {% endif -%}
               {{ labels[b.class_id] }}
             </span>
-          </div>
+            {% if b.video_url %}<span class="tt-zeichen" aria-hidden="true">📹</span>
+            {% elif b.note %}<span class="tt-zeichen" aria-hidden="true">ℹ</span>{% endif %}
+          </button>
         {% endfor %}
       </div>
     {% endif %}
@@ -68,5 +84,6 @@
   {% endif %}
 </div>
 
+{{ detail_dialog() }}
 <script src="{{ url_for('static', filename='agenda-refresh.js') }}" defer></script>
 {% endblock %}

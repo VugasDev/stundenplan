@@ -19,6 +19,18 @@ def _login_user_with_lessons(app, client):
     return u, k
 
 
+def _heute_der_app(app):
+    """Der heutige Tag in der Zeitzone der App, nicht der des Testlaufs.
+
+    Die Ansichten rechnen in Ortszeit. Die CI laeuft in UTC: zwischen 22 und
+    24 Uhr UTC ist in Europe/Berlin schon der naechste Tag, und dann zeigte
+    die Seite die Jetzt-Linie zu Recht nicht an dem Tag, den der Test fuer
+    heute hielt.
+    """
+    from app.zeit import local_today
+    return local_today(app.config["TIMEZONE"])
+
+
 def _lesson(k, day, start, end, subject="ITD", room="K204", status="normal"):
     return Lesson(class_id=k.id, date=datetime.date.fromisoformat(day),
                   start_time=datetime.time.fromisoformat(start),
@@ -225,7 +237,7 @@ def test_tagesansicht_nennt_den_wochentag_auf_deutsch(app, client):
 
 def test_wochenansicht_zeigt_die_jetzt_linie_nur_in_der_aktuellen_woche(app, client):
     u, k = _login_user_with_lessons(app, client)
-    heute = datetime.date.today()
+    heute = _heute_der_app(app)
     montag = heute - datetime.timedelta(days=heute.weekday())
     db.session.add(_lesson(k, heute.isoformat(), "07:30", "09:00"))
     db.session.commit()
@@ -237,7 +249,7 @@ def test_wochenansicht_zeigt_die_jetzt_linie_nur_in_der_aktuellen_woche(app, cli
 
 def test_tagesansicht_zeigt_die_jetzt_linie_nur_heute(app, client):
     u, k = _login_user_with_lessons(app, client)
-    heute = datetime.date.today()
+    heute = _heute_der_app(app)
     db.session.add_all([_lesson(k, heute.isoformat(), "07:30", "09:00"),
                         _lesson(k, (heute + datetime.timedelta(days=1)).isoformat(),
                                 "07:30", "09:00", subject="MORGEN")])

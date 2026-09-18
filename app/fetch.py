@@ -6,6 +6,7 @@ from app.extensions import db
 from app.models import SchoolClass, Lesson
 from app.lessons import normalize
 from app.webuntis_client import fetch_class_lessons
+from app.webuntis_web import hole_zusatzinfos
 from app.schedule import may_fetch_automatically
 from app.lifecycle import dormant_reason, laufzeiten_aus_konfiguration
 from app.zeit import local_today, local_now, STANDARD_ZONE
@@ -23,8 +24,22 @@ def purge_outside_window(school_class, today: datetime.date, window_days: int) -
             .delete(synchronize_session=False))
 
 
+def _zusatzinfos(zugang, school_class, today, end, info_fetcher) -> dict:
+    """Texte und Konferenzlinks — Beiwerk, das den Plan nie gefaehrden darf.
+
+    Diese Angaben kommen aus einer anderen Schnittstelle als die Kerndaten.
+    Faellt sie aus, fehlen Anmerkungen und Links; der Plan selbst steht
+    trotzdem. Ein Fehler hier darf den Abruf nicht als gescheitert markieren.
+    """
+    try:
+        return info_fetcher(zugang, school_class.untis_class_id, today, end)
+    except Exception:
+        return {}
+
+
 def fetch_class(school_class, cipher, today=None, window_days=21,
-                fetcher=fetch_class_lessons, zone=STANDARD_ZONE) -> bool:
+                fetcher=fetch_class_lessons, zone=STANDARD_ZONE,
+                info_fetcher=hole_zusatzinfos) -> bool:
     """Holt den Plan einer Klasse. Rueckgabe: ob abgerufen wurde."""
     if not school_class.has_source:
         return False
@@ -48,17 +63,21 @@ def fetch_class(school_class, cipher, today=None, window_days=21,
         }
         raw = fetcher(credentials, school_class.untis_class_id, today, end)
         normalized = normalize(raw)
+        infos = _zusatzinfos(credentials, school_class, today, end, info_fetcher)
 
         (db.session.query(Lesson)
          .filter(Lesson.class_id == school_class.id,
                  Lesson.date >= today, Lesson.date <= end)
          .delete(synchronize_session=False))
         for n in normalized:
+            zusatz = infos.get((n.date, n.start_time))
             db.session.add(Lesson(
                 class_id=school_class.id, date=n.date,
                 start_time=n.start_time, end_time=n.end_time,
                 subject=n.subject, room=n.room, teacher=n.teacher,
-                status=n.status, note=n.note,
+                status=n.status,
+                note=(zusatz.text if zusatz else n.note)[:255],
+                video_url=(zusatz.video_url if zusatz else "")[:500],
             ))
         school_class.last_fetch_status = "ok"
     except Exception as exc:  # Fehler je Klasse isolieren
@@ -80,7 +99,7 @@ def fetch_class(school_class, cipher, today=None, window_days=21,
 
 def run_all(cipher, now=None, today=None, window_days=21,
             fetcher=fetch_class_lessons, zone=STANDARD_ZONE,
-            laufzeiten=None, force=False) -> int:
+            laufzeiten=None, force=False, info_fetcher=hole_zusatzinfos) -> int:
     """Automatiklauf: holt nur faellige Klassen und nur tagsueber.
 
     Stillgelegte Klassen bleiben aussen vor — verlassene und solche, deren
@@ -100,7 +119,8 @@ def run_all(cipher, now=None, today=None, window_days=21,
         if not force and not may_fetch_automatically(school_class.last_fetch_at, now):
             continue
         if fetch_class(school_class, cipher, today=today,
-                       window_days=window_days, fetcher=fetcher, zone=zone):
+                       window_days=window_days, fetcher=fetcher, zone=zone,
+                       info_fetcher=info_fetcher):
             geholt += 1
     return geholt
 

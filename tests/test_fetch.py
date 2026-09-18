@@ -191,3 +191,57 @@ def test_klasse_mit_unbekanntem_kuerzel_wird_weiter_abgerufen(app):
                      today=datetime.date(2040, 9, 1),
                      fetcher=lambda c, kid, s, e: [_raw(tag="2040-09-03")])
     assert anzahl == 1
+
+
+# --- Zusatzinfos aus der Weboberflaeche ---------------------------------------
+
+def _zusatz(**kw):
+    from app.webuntis_web import Zusatz
+    return Zusatz(**kw)
+
+
+def test_abruf_traegt_text_und_konferenzlink_an_der_stunde_ein(app):
+    k = _klasse()
+    infos = {(datetime.date(2026, 9, 16), datetime.time(7, 30)):
+             _zusatz(text="Fernunterricht", hat_konferenz=True,
+                     video_url="https://teams.microsoft.com/l/x")}
+    fetch_class(k, _Cipher(), today=datetime.date(2026, 9, 16),
+                fetcher=lambda c, kid, s, e: [_raw()],
+                info_fetcher=lambda c, kid, s, e: infos)
+    stunde = k.lessons[0]
+    assert stunde.note == "Fernunterricht"
+    assert stunde.video_url == "https://teams.microsoft.com/l/x"
+
+
+def test_stunde_ohne_zusatzinfo_bleibt_leer(app):
+    k = _klasse()
+    fetch_class(k, _Cipher(), today=datetime.date(2026, 9, 16),
+                fetcher=lambda c, kid, s, e: [_raw()],
+                info_fetcher=lambda c, kid, s, e: {})
+    assert k.lessons[0].note == "" and k.lessons[0].video_url == ""
+
+
+def test_gescheiterte_zusatzinfos_kosten_nicht_den_ganzen_plan(app):
+    """Die Zusatzinfos sind Beiwerk — der Plan selbst ist die Hauptsache.
+
+    Ein einziger Fehler im Zusatzabruf hat frueher schon einmal den kompletten
+    Klassenplan mitgerissen; das darf sich hier nicht wiederholen.
+    """
+    k = _klasse()
+    def info_fetcher(*a, **kw):
+        raise RuntimeError("Weboberflaeche antwortet nicht")
+    fetch_class(k, _Cipher(), today=datetime.date(2026, 9, 16),
+                fetcher=lambda c, kid, s, e: [_raw()], info_fetcher=info_fetcher)
+    assert len(k.lessons) == 1
+    assert k.last_fetch_status == "ok"
+
+
+def test_automatiklauf_reicht_den_zusatzabruf_durch(app):
+    """Sonst greift der Automatiklauf am Testdoppel vorbei zur echten Schnittstelle."""
+    _klasse()
+    gesehen = []
+    run_all(_Cipher(), now=datetime.datetime(2026, 9, 16, 9, 0),
+            today=datetime.date(2026, 9, 16),
+            fetcher=lambda c, kid, s, e: [],
+            info_fetcher=lambda c, kid, s, e: gesehen.append(kid) or {})
+    assert gesehen == [7]

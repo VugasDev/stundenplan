@@ -6,7 +6,7 @@ from app.blocks import merge_lessons
 
 
 def L(start, end, subject="ITD", room="K204", teacher="MUE", status="normal",
-      class_id=1, day="2026-09-16"):
+      class_id=1, day="2026-09-16", note="", video_url=""):
     """Baut ein Lesson-aehnliches Objekt, wie es aus der DB kommt."""
     return type("L", (), {
         "date": datetime.date.fromisoformat(day),
@@ -14,6 +14,7 @@ def L(start, end, subject="ITD", room="K204", teacher="MUE", status="normal",
         "end_time": datetime.time.fromisoformat(end),
         "subject": subject, "room": room, "teacher": teacher,
         "status": status, "class_id": class_id,
+        "note": note, "video_url": video_url,
     })()
 
 
@@ -304,3 +305,29 @@ def test_segmentdaten_enthalten_auch_die_gestauchte_luecke():
 
 def test_leere_achse_liefert_leere_segmentliste():
     assert axis_payload(build_axis([])) == {"height": 0.0, "segments": []}
+
+
+# --- Zusatzinfos am Block -----------------------------------------------------
+
+def test_block_traegt_anmerkung_und_konferenzlink():
+    block = merge_lessons([L("07:30", "08:15", note="Klausur",
+                             video_url="https://teams.microsoft.com/l/x")])[0]
+    assert block.note == "Klausur"
+    assert block.video_url == "https://teams.microsoft.com/l/x"
+
+
+def test_doppelstunde_uebernimmt_die_angaben_der_ersten_stunde_mit_inhalt():
+    """WebUntis haengt die Anmerkung oft nur an eine der beiden Stunden."""
+    block = merge_lessons([L("07:30", "08:15"),
+                           L("08:15", "09:00", note="Laptop mitbringen",
+                             video_url="https://teams.microsoft.com/l/x")])[0]
+    assert block.units == 2
+    assert block.note == "Laptop mitbringen"
+    assert block.video_url == "https://teams.microsoft.com/l/x"
+
+
+def test_unterschiedliche_anmerkungen_trennen_den_block_nicht():
+    """Die Stunde bleibt dieselbe — sonst zerfaellt eine Doppelstunde in zwei."""
+    bloecke = merge_lessons([L("07:30", "08:15", note="Teil 1"),
+                             L("08:15", "09:00", note="Teil 2")])
+    assert len(bloecke) == 1

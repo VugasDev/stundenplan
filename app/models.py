@@ -144,5 +144,8 @@ class Lesson(db.Model):
     teacher = db.Column(db.String(255), nullable=False, default="")
     status = db.Column(db.String(20), nullable=False, default="normal")
     note = db.Column(db.String(255), nullable=False, default="")
+    # Videokonferenz der Stunde (Fernunterricht). Grosszuegig bemessen:
+    # Teams-Einladungen tragen lange Kennungen im Pfad.
+    video_url = db.Column(db.String(500), nullable=False, default="")
 
     school_class = db.relationship("SchoolClass", back_populates="lessons")

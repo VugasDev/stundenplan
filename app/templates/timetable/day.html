@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "timetable/_macros.html" import block_el, bands, axis_col, jetzt_linie %}
+{% from "timetable/_macros.html" import block_el, bands, axis_col, jetzt_linie, detail_dialog %}
 {% block title %}{{ tag|wochentag_lang }}, {{ tag.strftime('%d.%m.') }}{% endblock %}
 {% block content %}
 {% include "timetable/_nav.html" %}
@@ -28,4 +28,5 @@
     <p class="tt-leer">An diesem Tag ist kein Unterricht.</p>
   {% endif %}
 </div>
+{{ detail_dialog() }}
 {% endblock %}
