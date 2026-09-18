@@ -148,10 +148,11 @@ def test_automatiklauf_holt_faellige_klassen(app):
 # --- Stillgelegte Klassen werden nicht abgerufen ------------------------------
 
 def test_verlassene_klasse_wird_nicht_mehr_abgerufen(app):
-    from app.zeit import local_now
+    """Zeitstempel relativ zum Testdatum, nicht zur echten Uhr — sonst haengt
+    das Ergebnis davon ab, an welchem Tag die Suite laeuft."""
     import datetime as dt
     k = _klasse()
-    k.members_left_at = local_now() - dt.timedelta(days=8)
+    k.members_left_at = dt.datetime(2026, 9, 16, 10, 0) - dt.timedelta(days=8)
     db.session.commit()
     def fetcher(*a, **kw):
         raise AssertionError("darf nicht aufgerufen werden")
@@ -161,10 +162,9 @@ def test_verlassene_klasse_wird_nicht_mehr_abgerufen(app):
 
 
 def test_klasse_in_der_schonfrist_wird_noch_abgerufen(app):
-    from app.zeit import local_now
     import datetime as dt
     k = _klasse()
-    k.members_left_at = local_now() - dt.timedelta(days=2)
+    k.members_left_at = dt.datetime(2026, 9, 16, 10, 0) - dt.timedelta(days=2)
     db.session.commit()
     anzahl = run_all(_Cipher(), now=datetime.datetime(2026, 9, 16, 10, 0),
                      today=datetime.date(2026, 9, 16),
