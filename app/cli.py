@@ -12,14 +12,31 @@ def register_cli(app):
         click.echo("Tabellen erstellt.")
 
     @app.cli.command("fetch-now")
-    def fetch_now():
-        """Ruft alle Stundenpläne sofort ab (wie der tägliche Job)."""
+    @click.option("--force", is_flag=True,
+                  help="Auch Klassen holen, die noch nicht fällig sind.")
+    def fetch_now(force):
+        """Ruft fällige Stundenpläne ab.
+
+        Ohne --force gilt derselbe Abstand wie beim Automatiklauf; nicht
+        fällige Klassen werden übersprungen. Die Ausgabe nennt die Zahl,
+        damit ein Lauf ohne Wirkung nicht wie ein erfolgreicher aussieht.
+        """
         from app.fetch import run_all
-        from app.zeit import local_today
-        run_all(current_app.extensions["cipher"],
-                today=local_today(current_app.config["TIMEZONE"]),
-                window_days=current_app.config["FETCH_WINDOW_DAYS"])
-        click.echo("Abruf abgeschlossen.")
+        from app.zeit import local_today, local_now
+        from app.lifecycle import laufzeiten_aus_konfiguration
+        zone = current_app.config["TIMEZONE"]
+        geholt = run_all(current_app.extensions["cipher"],
+                         now=local_now(zone), today=local_today(zone),
+                         window_days=current_app.config["FETCH_WINDOW_DAYS"],
+                         zone=zone,
+                         laufzeiten=laufzeiten_aus_konfiguration(
+                             current_app.config.get("KLASSENLAUFZEITEN")),
+                         force=force)
+        if geholt:
+            click.echo(f"{geholt} Klasse(n) abgerufen.")
+        else:
+            click.echo("Keine Klasse war fällig — nichts abgerufen. "
+                       "Mit --force lässt sich das erzwingen.")
 
     @app.cli.command("make-admin")
     @click.argument("email")

@@ -259,3 +259,65 @@ def test_upgrade_db_traegt_auch_die_adminspalte_nach(app):
     from app.cli import NACHGETRAGENE_SPALTEN
     spalten = {(t, s) for t, s, _ in NACHGETRAGENE_SPALTEN}
     assert ("users", "is_admin") in spalten
+
+
+# --- fetch-now sagt, was es getan hat -----------------------------------------
+
+def test_abruf_meldet_wie_viele_klassen_geholt_wurden(app):
+    """`fetch-now` uebersprang faellige Klassen stillschweigend — man hielt den
+    alten Status dann faelschlich fuer das Ergebnis des Aufrufs."""
+    from app.fetch import run_all
+    from app.models import SchoolClass
+    from app.extensions import db
+    import datetime as dt
+    k = SchoolClass(server_url="s", school="s", untis_class_id=1, name="AB42",
+                    username="u", password_encrypted="enc")
+    k.last_fetch_at = dt.datetime(2026, 9, 18, 10, 0)     # gerade eben abgerufen
+    db.session.add(k); db.session.commit()
+
+    class _Cipher:
+        def decrypt(self, t): return "geheim"
+
+    geholt = run_all(_Cipher(), now=dt.datetime(2026, 9, 18, 10, 30),
+                     today=dt.date(2026, 9, 18), fetcher=lambda *a, **kw: [])
+    assert geholt == 0        # noch nicht faellig
+
+
+def test_erzwungener_abruf_ignoriert_die_faelligkeit(app):
+    from app.fetch import run_all
+    from app.models import SchoolClass
+    from app.extensions import db
+    import datetime as dt
+    k = SchoolClass(server_url="s", school="s", untis_class_id=2, name="AB43",
+                    username="u", password_encrypted="enc")
+    k.last_fetch_at = dt.datetime(2026, 9, 18, 10, 0)
+    db.session.add(k); db.session.commit()
+
+    class _Cipher:
+        def decrypt(self, t): return "geheim"
+
+    geholt = run_all(_Cipher(), now=dt.datetime(2026, 9, 18, 10, 30),
+                     today=dt.date(2026, 9, 18), fetcher=lambda *a, **kw: [],
+                     force=True)
+    assert geholt == 1
+
+
+def test_erzwingen_holt_auch_stillgelegte_klassen_nicht(app):
+    """Erzwingen umgeht die Faelligkeit, nicht die Stilllegung — eine verlassene
+    Klasse bleibt aussen vor."""
+    from app.fetch import run_all
+    from app.models import SchoolClass
+    from app.extensions import db
+    import datetime as dt
+    k = SchoolClass(server_url="s", school="s", untis_class_id=3, name="AB44",
+                    username="u", password_encrypted="enc")
+    k.members_left_at = dt.datetime(2026, 9, 1)
+    db.session.add(k); db.session.commit()
+
+    class _Cipher:
+        def decrypt(self, t): return "geheim"
+
+    geholt = run_all(_Cipher(), now=dt.datetime(2026, 9, 18, 10, 30),
+                     today=dt.date(2026, 9, 18), fetcher=lambda *a, **kw: [],
+                     force=True)
+    assert geholt == 0
