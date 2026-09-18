@@ -3,7 +3,8 @@ from flask import (Blueprint, render_template, redirect, url_for, flash, request
 from flask_login import login_user, logout_user, login_required
 
 from app.extensions import db, limiter
-from app.models import User
+from app.models import User, InviteCode
+from app.zeit import local_today
 from app.auth.forms import (RegisterForm, LoginForm, ForgotPasswordForm,
                             ResetPasswordForm)
 from app import mailer
@@ -17,14 +18,31 @@ def _send_confirmation_for(user) -> bool:
     return mailer.send_confirmation(user.email, confirm_url)
 
 
-def _registration_allowed(form) -> tuple[bool, str]:
+def _registration_allowed(form) -> tuple[bool, str, object]:
+    """Darf registriert werden? Gibt zusaetzlich den eingeloesten Code zurueck.
+
+    Der Code aus der Konfiguration gilt weiterhin — sonst sperrt der Umstieg
+    auf verwaltete Codes alle aus, die den alten schon bekommen haben.
+    """
     mode = current_app.config["REGISTRATION_MODE"]
     if mode == "admin":
-        return False, "Registrierung ist deaktiviert. Bitte wende dich an den Admin."
-    if mode == "invite":
-        if form.invite_code.data != current_app.config["INVITE_CODE"] or not current_app.config["INVITE_CODE"]:
-            return False, "Ungültiger Einladungscode."
-    return True, ""
+        return False, "Registrierung ist deaktiviert. Bitte wende dich an den Admin.", None
+    if mode != "invite":
+        return True, "", None
+
+    eingabe = (form.invite_code.data or "").strip()
+    if not eingabe:
+        return False, "Ungültiger Einladungscode.", None
+
+    aus_konfiguration = current_app.config["INVITE_CODE"]
+    if aus_konfiguration and eingabe == aus_konfiguration:
+        return True, "", None
+
+    heute = local_today(current_app.config["TIMEZONE"])
+    code = db.session.query(InviteCode).filter_by(code=eingabe).first()
+    if code is not None and code.is_valid(heute):
+        return True, "", code
+    return False, "Ungültiger Einladungscode.", None
 
 
 @bp.route("/register", methods=["GET", "POST"])
@@ -32,7 +50,7 @@ def _registration_allowed(form) -> tuple[bool, str]:
 def register():
     form = RegisterForm()
     if form.validate_on_submit():
-        allowed, msg = _registration_allowed(form)
+        allowed, msg, code = _registration_allowed(form)
         if not allowed:
             flash(msg, "error")
             return render_template("auth/register.html", form=form)
@@ -42,6 +60,8 @@ def register():
         user = User(email=form.email.data)
         user.set_password(form.password.data)
         db.session.add(user)
+        if code is not None:
+            code.uses += 1
         db.session.commit()
         if _send_confirmation_for(user):
             flash("Fast geschafft! Bitte bestätige den Link in deiner E-Mail.", "success")

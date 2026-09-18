@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Konten verwalten{% endblock %}
+{% block content %}
+<p class="admin-zurueck"><a href="{{ url_for('admin.index') }}">← Verwaltung</a></p>
+<h1>Konten</h1>
+<table>
+  <thead><tr><th>E-Mail</th><th>Registriert</th><th>Bestätigt</th>
+             <th>Klassen</th><th>Rolle</th><th></th></tr></thead>
+  <tbody>
+  {% for z in zeilen %}
+    {% set u = z.user %}
+    <tr>
+      <td>{{ u.email }}</td>
+      <td>{{ u.created_at.strftime('%d.%m.%Y') }}</td>
+      <td>{% if u.confirmed %}ja{% else %}<em>offen</em>{% endif %}</td>
+      <td>{{ z.klassen }}</td>
+      <td>{% if u.is_admin %}Admin{% else %}—{% endif %}</td>
+      <td>
+        <form method="post" action="{{ url_for('admin.konto_reset', user_id=u.id) }}"
+              onsubmit="return confirm('Rücksetzlink an {{ u.email }} schicken?');">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit">Passwort zurücksetzen</button>
+        </form>
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+<p class="tt-hinweis">Der Rücksetzlink geht ausschließlich an das hinterlegte
+Postfach — du bekommst ihn nicht zu sehen.</p>
+{% endblock %}

@@ -21,6 +21,24 @@ def register_cli(app):
                 window_days=current_app.config["FETCH_WINDOW_DAYS"])
         click.echo("Abruf abgeschlossen.")
 
+    @app.cli.command("make-admin")
+    @click.argument("email")
+    def make_admin(email):
+        """Gibt einem Konto Zugang zur Verwaltung."""
+        if set_admin(email, True):
+            click.echo(f"{email} ist jetzt Administrator.")
+        else:
+            click.echo(f"Kein Konto mit der Adresse {email} gefunden.")
+
+    @app.cli.command("revoke-admin")
+    @click.argument("email")
+    def revoke_admin(email):
+        """Nimmt einem Konto den Zugang zur Verwaltung."""
+        if set_admin(email, False):
+            click.echo(f"{email} ist kein Administrator mehr.")
+        else:
+            click.echo(f"Kein Konto mit der Adresse {email} gefunden.")
+
     @app.cli.command("upgrade-db")
     def upgrade_db():
         """Traegt nach einem Update fehlende Spalten nach."""
@@ -138,6 +156,9 @@ def migrate_accounts_to_classes(lister=None, cipher=None) -> dict:
 # per ALTER TABLE nachtragen; db.create_all() aendert bestehende Tabellen nicht.
 NACHGETRAGENE_SPALTEN = [
     ("school_classes", "members_left_at", "DATETIME"),
+    # Bestehende Konten sind keine Administratoren; das Recht vergibt
+    # ausschliesslich `flask --app app make-admin`.
+    ("users", "is_admin", "BOOLEAN NOT NULL DEFAULT 0"),
 ]
 
 
@@ -158,3 +179,16 @@ def add_missing_columns() -> list[str]:
         db.session.execute(db.text(f"ALTER TABLE {tabelle} ADD COLUMN {spalte} {typ}"))
         ergaenzt.append(f"{tabelle}.{spalte}")
     return ergaenzt
+
+
+def set_admin(email: str, admin: bool) -> bool:
+    """Vergibt oder entzieht das Administratorrecht. False = Adresse unbekannt."""
+    from app.models import User
+    adresse = (email or "").strip().lower()
+    user = (db.session.query(User)
+            .filter(db.func.lower(User.email) == adresse).first())
+    if user is None:
+        return False
+    user.is_admin = admin
+    db.session.commit()
+    return True

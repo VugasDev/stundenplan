@@ -174,6 +174,35 @@ Farben liegen als CSS-Variablen an einer Stelle — wer eine Farbe ändert, änd
 sie für beide Darstellungen. Nur die Linie der aktuellen Uhrzeit bleibt bewusst in
 beiden Darstellungen rot.
 
+## Verwaltung
+
+Unter `/admin` gibt es drei Bereiche: Einladungscodes, Klassen und Konten. Wer
+das Recht nicht hat, bekommt dort **404** — der Bereich verrät seine Existenz
+nicht.
+
+Das Recht wird ausschließlich auf dem Server vergeben:
+
+```
+flask --app app make-admin deine@mail.de
+flask --app app revoke-admin deine@mail.de
+```
+
+Wer Serverzugang hat, ist ohnehin mächtiger als jeder Admin in der Oberfläche —
+deshalb keine Vergabe über die Weboberfläche und keine Selbsternennung.
+
+**Einladungscodes** gelten für eine ganze Gruppe: beliebig oft einlösbar, sofern
+kein Limit gesetzt ist, mit optionalem Ablaufdatum. Die Übersicht zeigt, wie oft
+ein Code schon benutzt wurde; zurückziehen geht jederzeit. Der Code aus
+`INVITE_CODE` in der `.env` bleibt zusätzlich gültig, damit der Umstieg niemanden
+aussperrt.
+
+**Klassen** lassen sich hier löschen — samt Mitgliedschaften und gespeicherten
+Stunden. Tritt jemand danach erneut bei, wird die Klasse neu angelegt.
+
+**Konten:** Ein Klick verschickt einen Rücksetzlink an die hinterlegte Adresse.
+Der Link erscheint nirgends in der Oberfläche; die Verwaltung kann damit also
+kein fremdes Konto übernehmen.
+
 ## Lizenz
 
 MIT — siehe [LICENSE](LICENSE).

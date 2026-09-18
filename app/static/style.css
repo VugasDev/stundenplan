@@ -166,3 +166,19 @@ th, td { border:1px solid var(--line); padding:.4rem; text-align:left; vertical-
                 border-radius:6px; padding:.25rem .5rem; font-size:.85rem;
                 cursor:pointer; line-height:1.2; }
 .theme-toggle:hover { border-color:var(--accent); }
+
+/* Verwaltungsbereich */
+.admin-kacheln { display:flex; flex-wrap:wrap; gap:.75rem; margin:1rem 0; }
+.admin-kachel { display:flex; flex-direction:column; gap:.2rem; min-width:220px;
+                background:var(--card); border:1px solid var(--line);
+                border-left:4px solid var(--accent); border-radius:10px;
+                padding:.9rem 1rem; text-decoration:none; color:var(--ink); }
+.admin-kachel:hover { border-color:var(--accent); }
+.admin-kachel span { color:var(--gedimmt); font-size:.85rem; }
+.admin-zurueck { margin-bottom:.5rem; font-size:.9rem; }
+.admin-zurueck a { color:var(--gedimmt); text-decoration:none; }
+.admin-ungueltig { opacity:.55; }
+.admin-ungueltig code { text-decoration:line-through; }
+/* Tabellen im Adminbereich koennen breit werden */
+.container table { display:block; overflow-x:auto; white-space:nowrap; }
+.container table form { display:inline; }

@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Klassen verwalten{% endblock %}
+{% block content %}
+<p class="admin-zurueck"><a href="{{ url_for('admin.index') }}">← Verwaltung</a></p>
+<h1>Klassen</h1>
+<table>
+  <thead><tr><th>Klasse</th><th>Schule</th><th>Mitglieder</th><th>Stunden</th>
+             <th>Zugang</th><th>Letzter Abruf</th><th></th></tr></thead>
+  <tbody>
+  {% for z in zeilen %}
+    {% set k = z.klasse %}
+    <tr>
+      <td>{{ k.name }}</td>
+      <td>{{ k.school }}</td>
+      <td>{{ z.mitglieder }}</td>
+      <td>{{ z.stunden }}</td>
+      <td>{% if k.has_source %}bereitgestellt{% else %}<em>keiner</em>{% endif %}</td>
+      <td>{{ k.last_fetch_status or "noch nicht abgerufen" }}</td>
+      <td>
+        <form method="post" action="{{ url_for('admin.klasse_loeschen', class_id=k.id) }}"
+              onsubmit="return confirm('Klasse {{ k.name }} wirklich löschen? Mitgliedschaften und Stunden gehen mit.');">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit">Löschen</button>
+        </form>
+      </td>
+    </tr>
+  {% else %}
+    <tr><td colspan="7">Noch keine Klasse angelegt.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+<p class="tt-hinweis">Löschen entfernt die Klasse samt Mitgliedschaften und
+gespeicherten Stunden. Tritt jemand danach erneut bei, wird sie neu angelegt.</p>
+{% endblock %}
