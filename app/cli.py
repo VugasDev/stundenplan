@@ -176,6 +176,7 @@ NACHGETRAGENE_SPALTEN = [
     # Bestehende Konten sind keine Administratoren; das Recht vergibt
     # ausschliesslich `flask --app app make-admin`.
     ("users", "is_admin", "BOOLEAN NOT NULL DEFAULT 0"),
+    ("lessons", "video_url", "VARCHAR(500) NOT NULL DEFAULT ''"),
 ]
 
 

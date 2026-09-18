@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "timetable/_macros.html" import block_el, bands, axis_col, jetzt_linie %}
+{% from "timetable/_macros.html" import block_el, bands, axis_col, jetzt_linie, detail_dialog %}
 {% block title %}Woche{% endblock %}
 {% block content %}
 {% include "timetable/_nav.html" %}
@@ -40,4 +40,5 @@
     <p class="tt-leer">Keine Stunden in dieser Woche.</p>
   {% endif %}
 </div>
+{{ detail_dialog() }}
 {% endblock %}

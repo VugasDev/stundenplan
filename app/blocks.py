@@ -21,6 +21,8 @@ class Block:
     teacher: str
     status: str
     units: int
+    note: str = ""
+    video_url: str = ""
 
 
 def _identity(lesson):
@@ -45,12 +47,20 @@ def merge_lessons(lessons) -> list[Block]:
                 and last.end_time == lesson.start_time):
             last.end_time = lesson.end_time
             last.units += 1
+            # WebUntis haengt Anmerkung und Konferenz haeufig nur an eine der
+            # Stunden einer Doppelstunde. Die erste Angabe mit Inhalt gilt
+            # deshalb fuer den ganzen Block.
+            last.note = last.note or getattr(lesson, "note", "") or ""
+            last.video_url = (last.video_url
+                              or getattr(lesson, "video_url", "") or "")
             continue
         blocks.append(Block(
             class_id=lesson.class_id, date=lesson.date,
             start_time=lesson.start_time, end_time=lesson.end_time,
             subject=lesson.subject, room=lesson.room, teacher=lesson.teacher,
             status=lesson.status, units=1,
+            note=getattr(lesson, "note", "") or "",
+            video_url=getattr(lesson, "video_url", "") or "",
         ))
     return blocks
 

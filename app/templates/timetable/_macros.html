@@ -1,7 +1,10 @@
 {#- Sich ueberschneidende Bloecke teilen sich die Spalte in gleich breite Spuren. -#}
 {% macro block_el(b, label, top, height, lane, lanes, kompakt=false) %}
-  <div class="tt-block tt-{{ b.status }}"
-       style="top:{{ '%.1f'|format(top) }}px; height:{{ '%.1f'|format(height) }}px; left:calc({{ '%g'|format(lane * 100 / lanes) }}% + 2px); right:calc({{ '%g'|format((lanes - lane - 1) * 100 / lanes) }}% + 2px)">
+  {#- Schaltflaeche statt div: der Block laesst sich anklicken, und damit auch
+      per Tastatur ansteuern und vom Screenreader ankuendigen. -#}
+  <button type="button" class="tt-block tt-{{ b.status }}{{ ' hat-info' if b.note or b.video_url }}"
+       style="top:{{ '%.1f'|format(top) }}px; height:{{ '%.1f'|format(height) }}px; left:calc({{ '%g'|format(lane * 100 / lanes) }}% + 2px); right:calc({{ '%g'|format((lanes - lane - 1) * 100 / lanes) }}% + 2px)"
+       {{ detail_daten(b, label) }}>
     <div class="tt-block-head">
       <strong class="tt-subject">{{ b.subject }}</strong>
       <span class="tt-class">{{ label }}</span>
@@ -11,7 +14,41 @@
     {% if b.teacher and not kompakt %}<div class="tt-teacher">{{ b.teacher }}</div>{% endif %}
     {% if b.status == 'substitution' %}<span class="tt-badge">Vertretung</span>{% endif %}
     {% if b.status == 'cancelled' %}<span class="tt-badge">entfällt</span>{% endif %}
-  </div>
+    {% if b.video_url %}<span class="tt-zeichen" aria-hidden="true">📹</span>{% endif %}
+    {% if b.note and not b.video_url %}<span class="tt-zeichen" aria-hidden="true">ℹ</span>{% endif %}
+  </button>
+{% endmacro %}
+
+{#- Alles, was das Detailfenster ueber die Stunde wissen muss. Die Angaben
+    stehen im Markup, nicht hinter einer Abfrage: so oeffnet sich das Fenster
+    auch dann, wenn das Geraet gerade kein Netz hat. -#}
+{% macro detail_daten(b, label) %}
+  data-fach="{{ b.subject }}"
+  data-klasse="{{ label }}"
+  data-tag="{{ b.date|wochentag_lang }}, {{ b.date.strftime('%d.%m.%Y') }}"
+  data-zeit="{{ b.start_time.strftime('%H:%M') }}–{{ b.end_time.strftime('%H:%M') }}"
+  data-raum="{{ b.room }}"
+  data-lehrer="{{ b.teacher }}"
+  data-status="{{ b.status }}"
+  data-stunden="{{ b.units }}"
+  data-notiz="{{ b.note }}"
+  data-konferenz="{{ b.video_url }}"
+{% endmacro %}
+
+{#- Ein Fenster fuer alle Bloecke der Seite; der Inhalt kommt beim Klick. -#}
+{% macro detail_dialog() %}
+  <dialog class="sd" id="stunden-dialog" aria-labelledby="sd-fach">
+    <form method="dialog" class="sd-schliessen-form">
+      <button class="sd-schliessen" aria-label="Schließen">×</button>
+    </form>
+    <p class="sd-marke" id="sd-marke" hidden></p>
+    <h2 class="sd-fach" id="sd-fach"></h2>
+    <dl class="sd-liste" id="sd-liste"></dl>
+    <p class="sd-notiz" id="sd-notiz" hidden></p>
+    <a class="sd-konferenz" id="sd-konferenz" hidden
+       target="_blank" rel="noopener noreferrer">Videokonferenz beitreten</a>
+  </dialog>
+  <script src="{{ url_for('static', filename='stunden-details.js') }}" defer></script>
 {% endmacro %}
 
 {% macro bands(axis) %}

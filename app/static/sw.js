@@ -9,13 +9,15 @@
 // Beim Abmelden schickt der Server "Clear-Site-Data" — der Browser leert Cache
 // und Speicher dann selbst, damit auf einem geteilten Geraet nichts zurueckbleibt.
 
-const VERSION = "v1";
+// v2: anklickbare Bloecke mit Detailfenster (neues Skript, geaenderte CSS).
+const VERSION = "v2";
 const HUELLE = `huelle-${VERSION}`;   // Oberflaeche
 const SEITEN = `seiten-${VERSION}`;   // besuchte Seiten
 
 const GRUNDGERUEST = [
   "/offline",
   "/static/style.css",
+  "/static/stunden-details.js",
   "/static/icons/icon-192.png",
 ];
 
