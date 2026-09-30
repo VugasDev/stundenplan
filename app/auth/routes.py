@@ -84,7 +84,7 @@ def login():
         if not user.confirmed:
             flash("Bitte bestätige zuerst deine E-Mail-Adresse.", "error")
             return render_template("auth/login.html", form=form)
-        login_user(user)
+        login_user(user, remember=form.remember.data)
         return redirect(url_for("timetable.index"))
     return render_template("auth/login.html", form=form)
 

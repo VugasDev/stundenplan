@@ -6,6 +6,7 @@
   {{ form.hidden_tag() }}
   <label>{{ form.email.label }} {{ form.email() }}</label>
   <label>{{ form.password.label }} {{ form.password() }}</label>
+  <label class="ankreuz">{{ form.remember() }} {{ form.remember.label.text }}</label>
   <button type="submit">Anmelden</button>
 </form>
 <p><a href="{{ url_for('auth.forgot_password') }}">Passwort vergessen?</a></p>

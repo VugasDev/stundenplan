@@ -14,3 +14,5 @@ instance/
 
 # Arbeitsverzeichnis der Ausfuehrung (nicht ins Repo)
 .superpowers/
+notes
+.claude/settings.local.json

@@ -331,3 +331,55 @@ def test_unterschiedliche_anmerkungen_trennen_den_block_nicht():
     bloecke = merge_lessons([L("07:30", "08:15", note="Teil 1"),
                              L("08:15", "09:00", note="Teil 2")])
     assert len(bloecke) == 1
+
+
+# --- Parallel laufende Reihen (Ausfall neben Ersatz) --------------------------
+
+def test_ausfall_und_ersatz_bleiben_je_ein_doppelblock():
+    """Gemessen am 30.09.: SWD faellt aus (VS) und wird ersetzt (KP), beides
+    als Doppelstunde. Beide Reihen muessen je ein Block bleiben.
+
+    Vorher zerfielen beide in Einzelstunden, weil jede Stunde nur mit dem
+    zuletzt erzeugten Block verglichen wurde — und das war jeweils der Block
+    der anderen Reihe.
+    """
+    bloecke = merge_lessons([
+        L("11:15", "12:00", subject="SWD", room="K205", teacher="VS", status="cancelled"),
+        L("11:15", "12:00", subject="SWD", room="K205", teacher="KP"),
+        L("12:00", "12:45", subject="SWD", room="K205", teacher="VS", status="cancelled"),
+        L("12:00", "12:45", subject="SWD", room="K205", teacher="KP"),
+    ])
+    assert len(bloecke) == 2, [(b.teacher, b.status, b.units) for b in bloecke]
+    assert all(b.units == 2 for b in bloecke)
+    assert all(b.start_time == datetime.time(11, 15) for b in bloecke)
+    assert all(b.end_time == datetime.time(12, 45) for b in bloecke)
+
+
+def test_drei_reihen_gleichzeitig_bleiben_getrennt_und_ganz():
+    """Der Nutzer hat drei Klassen — im Extremfall laufen drei Reihen parallel."""
+    stunden = []
+    for klasse, fach in ((1, "ITD"), (2, "WB"), (3, "PK")):
+        stunden += [L("08:00", "08:45", subject=fach, class_id=klasse),
+                    L("08:45", "09:30", subject=fach, class_id=klasse)]
+    bloecke = merge_lessons(stunden)
+    assert len(bloecke) == 3
+    assert all(b.units == 2 for b in bloecke)
+
+
+def test_eine_pause_trennt_auch_bei_parallelen_reihen():
+    """Die Pausenregel bleibt: 19:25–20:10 und 20:15–21:00 sind zwei Bloecke."""
+    bloecke = merge_lessons([
+        L("19:25", "20:10", subject="SLP1", room="", status="cancelled"),
+        L("20:15", "21:00", subject="SLP1", room="", status="cancelled"),
+        L("21:00", "21:45", subject="SLP1", room="", status="cancelled"),
+    ])
+    assert [b.units for b in bloecke] == [1, 2]
+
+
+def test_reihenfolge_bleibt_nach_beginn_sortiert():
+    bloecke = merge_lessons([
+        L("12:00", "12:45", subject="EVP"),
+        L("08:00", "08:45", subject="ITD"),
+        L("10:00", "10:45", subject="SWD"),
+    ])
+    assert [b.subject for b in bloecke] == ["ITD", "SWD", "EVP"]

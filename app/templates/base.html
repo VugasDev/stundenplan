@@ -37,6 +37,7 @@
   {% if current_user.is_authenticated %}
     <a href="{{ url_for('timetable.index') }}">Plan</a>
     <a href="{{ url_for('classes.list_classes') }}">Klassen</a>
+    <a href="{{ url_for('timetable.einstellungen') }}">Einstellungen</a>
     {% if current_user.is_admin %}
       <a href="{{ url_for('admin.index') }}">Verwaltung</a>
     {% endif %}

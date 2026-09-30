@@ -16,6 +16,34 @@ bp = Blueprint("timetable", __name__)
 
 AGENDA_VORSCHAU_TAGE = 14
 
+# Die Ansichten, die es gibt. Alles andere fuehrt zur Agenda — der Wert kommt
+# aus der Adresszeile und darf nichts Unerwartetes ausloesen.
+ANSICHTEN = ("agenda", "day", "week")
+# Zusaetzlich als Startansicht waehlbar: die zuletzt benutzte.
+STARTANSICHTEN = ANSICHTEN + ("last",)
+
+
+def _gewaehlte_ansicht() -> str:
+    """Welche Ansicht gezeigt wird — Adresszeile zuerst, dann die Einstellung.
+
+    Steht eine Ansicht in der Adresse, gilt sie und wird als zuletzt benutzte
+    vermerkt. Fehlt sie, entscheidet die Einstellung des Kontos.
+    """
+    aus_adresse = request.args.get("view")
+    if aus_adresse in ANSICHTEN:
+        if current_user.last_view != aus_adresse:
+            current_user.last_view = aus_adresse
+            db.session.commit()
+        return aus_adresse
+    if aus_adresse is not None:
+        # Unbekannter Wert: Vorgabe zeigen, aber nichts merken.
+        return "agenda"
+
+    wunsch = current_user.start_view or "agenda"
+    if wunsch == "last":
+        return current_user.last_view if current_user.last_view in ANSICHTEN else "agenda"
+    return wunsch if wunsch in ANSICHTEN else "agenda"
+
 
 def _monday_of(d: datetime.date) -> datetime.date:
     return d - datetime.timedelta(days=d.weekday())
@@ -55,7 +83,7 @@ def _positioned(blocks, axis):
 @bp.route("/")
 @login_required
 def index():
-    view = request.args.get("view", "agenda")
+    view = _gewaehlte_ansicht()
     klassen = _own_classes()
     labels = {k.id: k.name for k in klassen}
     class_ids = [k.id for k in klassen]
@@ -140,3 +168,19 @@ def refresh():
         flash(f"Bereits kürzlich abgerufen, angezeigt wird der gespeicherte "
               f"Stand: {namen}", "error")
     return redirect(request.referrer or url_for("timetable.index"))
+
+
+@bp.route("/einstellungen", methods=["GET", "POST"])
+@login_required
+def einstellungen():
+    if request.method == "POST":
+        wahl = request.form.get("start_view", "")
+        if wahl not in STARTANSICHTEN:
+            flash("Unbekannte Startansicht — nichts geändert.", "error")
+        else:
+            current_user.start_view = wahl
+            db.session.commit()
+            flash("Einstellung gespeichert.", "success")
+        return redirect(url_for("timetable.einstellungen"))
+    return render_template("timetable/einstellungen.html",
+                           start_view=current_user.start_view or "agenda")

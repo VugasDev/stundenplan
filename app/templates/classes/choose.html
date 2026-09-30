@@ -2,6 +2,8 @@
 {% block title %}Klasse wählen{% endblock %}
 {% block content %}
 <h1>Welche Klasse ist deine?</h1>
+{#- Ob eine Klasse schon versorgt ist, haengt an der Auswahl. Die wechselt im
+    Browser ohne Neuladen, deshalb steht der Zustand an jeder Option. -#}
 <form method="post" action="{{ url_for('classes.choose') }}" class="card" autocomplete="off">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <input type="hidden" name="token" value="{{ token }}">
@@ -9,26 +11,35 @@
   <label>Klasse
     <select name="untis_class_id" id="klassenwahl" required>
       {% for k in klassen %}
-        <option value="{{ k.id }}" data-name="{{ k.name }}">{{ k.name }}</option>
+        <option value="{{ k.id }}" data-name="{{ k.name }}"
+                data-hat-quelle="{{ 'ja' if k.id in versorgt else 'nein' }}">{{ k.name }}</option>
       {% endfor %}
     </select>
   </label>
   <input type="hidden" name="name" id="klassenname" value="{{ klassen[0].name if klassen }}">
-  <label class="spende">
-    <input type="checkbox" name="spenden" value="ja">
-    Meinen Zugang für diese Klasse bereitstellen
-  </label>
-  <p class="hinweis">Wenn du das ankreuzt, wird dein WebUntis-Passwort verschlüsselt
-  gespeichert und alle 90 Minuten für den Abruf des Klassenplans verwendet. Alle
-  anderen Mitglieder brauchen dann kein eigenes Passwort mehr. Du kannst die Spende
-  jederzeit zurückziehen — die Zugangsdaten werden dann sofort gelöscht.</p>
+
+  {#- Sind alle angebotenen Klassen versorgt, entfaellt die Frage ganz: dann
+      steht sie auch ohne JavaScript nicht da. Bei gemischter Auswahl bleibt
+      sie im Markup und wird passend zur Wahl ein- und ausgeblendet. -#}
+  {% set alle_versorgt = klassen and klassen|map(attribute='id')|reject('in', versorgt)|list|length == 0 %}
+  {% set erste_versorgt = klassen and klassen[0].id in versorgt %}
+  {% if not alle_versorgt %}
+  <div id="spende-block" {{ 'hidden' if erste_versorgt }}>
+    <label class="spende">
+      <input type="checkbox" name="spenden" value="ja">
+      Meinen Zugang für diese Klasse bereitstellen
+    </label>
+    <p class="hinweis">Wenn du das ankreuzt, wird dein WebUntis-Passwort verschlüsselt
+    gespeichert und alle 90 Minuten für den Abruf des Klassenplans verwendet. Alle
+    anderen Mitglieder brauchen dann kein eigenes Passwort mehr. Du kannst die Spende
+    jederzeit zurückziehen — die Zugangsdaten werden dann sofort gelöscht.</p>
+  </div>
+  {% endif %}
+  <p class="hinweis" id="schon-versorgt" {{ 'hidden' if not erste_versorgt }}>Für diese
+  Klasse liegt bereits ein Zugang vor — du brauchst nichts zu spenden. Dein Passwort
+  wird nicht gespeichert.</p>
+
   <button type="submit">Klasse hinzufügen</button>
 </form>
-<script>
-  // Klassenname mitschicken, damit die Anzeige ohne zweiten Abruf stimmt.
-  document.getElementById("klassenwahl").addEventListener("change", function (e) {
-    var opt = e.target.selectedOptions[0];
-    document.getElementById("klassenname").value = opt.dataset.name;
-  });
-</script>
+<script src="{{ url_for('static', filename='klassenwahl.js') }}" defer></script>
 {% endblock %}
