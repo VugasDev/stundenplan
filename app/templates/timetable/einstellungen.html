@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Einstellungen{% endblock %}
+{% block content %}
+<h1>Einstellungen</h1>
+<form method="post" class="card">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <fieldset class="wahlgruppe">
+    <legend>Startansicht</legend>
+    <p class="hinweis">Womit die App aufgeht, wenn du sie öffnest.</p>
+    {% for wert, beschriftung in [
+         ('agenda', 'Jetzt — was als Nächstes ansteht'),
+         ('day', 'Tag'),
+         ('week', 'Woche'),
+         ('last', 'Die zuletzt benutzte Ansicht')] %}
+      <label class="ankreuz">
+        <input type="radio" name="start_view" value="{{ wert }}"
+               {{ 'checked' if start_view == wert }}>
+        {{ beschriftung }}
+      </label>
+    {% endfor %}
+  </fieldset>
+  <button type="submit">Speichern</button>
+</form>
+{% endblock %}

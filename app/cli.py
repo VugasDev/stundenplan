@@ -177,6 +177,8 @@ NACHGETRAGENE_SPALTEN = [
     # ausschliesslich `flask --app app make-admin`.
     ("users", "is_admin", "BOOLEAN NOT NULL DEFAULT 0"),
     ("lessons", "video_url", "VARCHAR(500) NOT NULL DEFAULT ''"),
+    ("users", "start_view", "VARCHAR(10) NOT NULL DEFAULT 'agenda'"),
+    ("users", "last_view", "VARCHAR(10) NOT NULL DEFAULT ''"),
 ]
 
 

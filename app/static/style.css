@@ -242,3 +242,14 @@ button.ag-karte, button.ag-zeile { display:block; width:100%; }
                 border-radius:9px; background:var(--accent); color:#fff;
                 font-weight:600; text-decoration:none; }
 .sd-konferenz:hover { filter:brightness(1.08); }
+
+/* --- Ankreuzfelder und Wahlgruppen ----------------------------------------
+   Labels im Formular stapeln Beschriftung ueber Eingabefeld. Bei einem
+   Haekchen oder Radioknopf gehoert beides in eine Zeile. */
+label.ankreuz { display:flex; align-items:center; gap:.5rem; margin:.35rem 0;
+                font-weight:400; cursor:pointer; }
+label.ankreuz input { width:auto; margin:0; flex:none; }
+.wahlgruppe { border:1px solid var(--line); border-radius:10px;
+              padding:.8rem 1rem 1rem; margin:0 0 1rem; }
+.wahlgruppe legend { padding:0 .35rem; font-weight:600; font-size:.95rem; }
+.wahlgruppe .hinweis { margin:.1rem 0 .7rem; }

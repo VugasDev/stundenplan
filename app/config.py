@@ -1,3 +1,4 @@
+import datetime
 import os
 from dotenv import load_dotenv
 
@@ -30,6 +31,15 @@ class Config:
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = "Lax"
     SESSION_COOKIE_SECURE = _bool("SESSION_COOKIE_SECURE", False)
+
+    # "Angemeldet bleiben": dasselbe Schutzniveau wie die Sitzung. Wer dieses
+    # Cookie lesen koennte, waere dauerhaft angemeldet, nicht nur bis zum
+    # Schliessen des Browsers. 30 Tage statt der voreingestellten 365 —
+    # lange genug fuer ein Schulhalbjahr, kurz genug zum Verfallen.
+    REMEMBER_COOKIE_DURATION = datetime.timedelta(days=30)
+    REMEMBER_COOKIE_HTTPONLY = True
+    REMEMBER_COOKIE_SAMESITE = "Lax"
+    REMEMBER_COOKIE_SECURE = _bool("SESSION_COOKIE_SECURE", False)
 
     # Zeitzone des Unterrichts — der Server laeuft auf UTC.
     TIMEZONE = os.environ.get("TIMEZONE", "Europe/Berlin")

@@ -46,6 +46,19 @@ def _verify_join_token(token: str):
         return None
 
 
+def _versorgte_klassen(server_url: str, school: str) -> set[int]:
+    """Untis-IDs der Klassen dieser Schule, fuer die schon ein Zugang vorliegt.
+
+    Wer einer solchen Klasse beitritt, braucht nicht zu spenden — danach zu
+    fragen verwirrt und verleitet dazu, das eigene Passwort ohne Not
+    herzugeben.
+    """
+    treffer = (db.session.query(SchoolClass.untis_class_id)
+               .filter_by(server_url=server_url, school=school)
+               .filter(SchoolClass.password_encrypted.isnot(None)).all())
+    return {untis_id for (untis_id,) in treffer}
+
+
 def _own_memberships():
     return (db.session.query(Membership)
             .filter_by(user_id=current_user.id).all())
@@ -93,7 +106,9 @@ def join():
                                      form.username.data, klassen)
         return render_template("classes/choose.html", klassen=klassen,
                                token=token,
-                               password=form.password.data)
+                               password=form.password.data,
+                               versorgt=_versorgte_klassen(form.server_url.data,
+                                                           form.school.data))
     return render_template("classes/join.html", form=form)
 
 

@@ -25,6 +25,10 @@ class User(UserMixin, db.Model):
     # Wird ausschliesslich ueber die Kommandozeile gesetzt (flask make-admin).
     # Wer Serverzugang hat, ist ohnehin maechtiger als jeder Admin im Browser.
     is_admin = db.Column(db.Boolean, nullable=False, default=False)
+    # Welche Ansicht beim Oeffnen erscheint: "agenda", "day", "week" oder
+    # "last" fuer die zuletzt benutzte. Leer = Vorgabe (Agenda).
+    start_view = db.Column(db.String(10), nullable=False, default="agenda")
+    last_view = db.Column(db.String(10), nullable=False, default="")
 
     memberships = db.relationship(
         "Membership", back_populates="user", cascade="all, delete-orphan",

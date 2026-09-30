@@ -365,3 +365,64 @@ def test_klassenliste_zeigt_bei_laufender_klasse_keinen_hinweis(app, client, use
     resp = client.get("/classes")
     assert "stillgelegt".encode("utf-8") not in resp.data
     assert "Laufzeit unbekannt".encode("utf-8") not in resp.data
+
+
+# --- Spende nur erfragen, wo sie gebraucht wird --------------------------------
+
+def _klasse_mit_quelle(name="FI42", untis_class_id=7, server_url="s.webuntis.com",
+                       school="s"):
+    k = SchoolClass(server_url=server_url, school=school,
+                    untis_class_id=untis_class_id, name=name,
+                    username="spender", password_encrypted="enc")
+    db.session.add(k); db.session.commit()
+    return k
+
+
+def test_versorgte_klasse_fragt_nicht_nach_einer_spende(app, client, user, monkeypatch):
+    """Liegt fuer die Klasse schon ein Zugang vor, ist eine zweite Spende
+    ueberfluessig — danach zu fragen verwirrt nur."""
+    _klasse_mit_quelle()
+    _patch_verify(monkeypatch)
+    resp = client.post("/classes/join", data={
+        "server_url": "s.webuntis.com", "school": "s",
+        "username": "schueler", "password": "geheim"}, follow_redirects=True)
+    html = resp.data.decode()
+    assert 'name="spenden"' not in html
+    assert "liegt bereits ein Zugang" in html
+
+
+def test_unversorgte_klasse_fragt_weiter_nach_einer_spende(app, client, user, monkeypatch):
+    _patch_verify(monkeypatch)
+    resp = client.post("/classes/join", data={
+        "server_url": "s.webuntis.com", "school": "s",
+        "username": "schueler", "password": "geheim"}, follow_redirects=True)
+    assert 'name="spenden"' in resp.data.decode()
+
+
+def test_bei_gemischter_auswahl_steht_der_zustand_an_jeder_klasse(
+        app, client, user, monkeypatch):
+    """Die Auswahl wechselt im Browser, ohne neu zu laden — deshalb muss an
+    jeder Option stehen, ob ihre Klasse schon versorgt ist."""
+    _klasse_mit_quelle(name="FI42", untis_class_id=7)
+    _patch_verify(monkeypatch, klassen=(UntisClass(7, "FI42"), UntisClass(8, "FI47")))
+    resp = client.post("/classes/join", data={
+        "server_url": "s.webuntis.com", "school": "s",
+        "username": "schueler", "password": "geheim"}, follow_redirects=True)
+    html = resp.data.decode()
+    assert re.search(r'value="7"[^>]*data-hat-quelle="ja"', html), html[:400]
+    assert re.search(r'value="8"[^>]*data-hat-quelle="nein"', html)
+
+
+def test_eine_spende_an_einer_versorgten_klasse_wird_nicht_uebernommen(
+        app, client, user, monkeypatch):
+    """Auch wenn jemand das Feld von Hand mitschickt: der vorhandene Zugang
+    bleibt unberuehrt."""
+    k = _klasse_mit_quelle()
+    _patch_verify(monkeypatch)
+    token = _join_und_token(client)
+    client.post("/classes/choose", data={
+        "token": token, "untis_class_id": "7", "password": "geheim",
+        "spenden": "ja"})
+    db.session.refresh(k)
+    assert k.username == "spender"
+    assert k.password_encrypted == "enc"
