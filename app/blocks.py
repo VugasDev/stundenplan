@@ -36,15 +36,20 @@ def merge_lessons(lessons) -> list[Block]:
 
     Zusammengefasst wird nur, was lueckenlos anschliesst — eine Pause von auch
     nur fuenf Minuten trennt zwei Bloecke.
+
+    Gesucht wird der offene Block *derselben* Stunde, nicht der zuletzt
+    angelegte: laufen zwei Reihen parallel — eine ausgefallene Stunde neben
+    ihrem Ersatz, oder einfach zwei Klassen gleichzeitig —, dann wechseln sich
+    die Reihen ab. Wer nur den letzten Block ansieht, findet dort immer die
+    andere Reihe und zerlegt am Ende beide in Einzelstunden.
     """
     ordered = sorted(lessons, key=lambda l: (l.date, l.start_time, l.class_id))
     blocks: list[Block] = []
+    offen: dict[tuple, Block] = {}      # Identitaet -> noch fortsetzbarer Block
     for lesson in ordered:
-        last = blocks[-1] if blocks else None
-        if (last is not None
-                and _identity(lesson) == (last.class_id, last.date, last.subject,
-                                          last.room, last.teacher, last.status)
-                and last.end_time == lesson.start_time):
+        kennung = _identity(lesson)
+        last = offen.get(kennung)
+        if last is not None and last.end_time == lesson.start_time:
             last.end_time = lesson.end_time
             last.units += 1
             # WebUntis haengt Anmerkung und Konferenz haeufig nur an eine der
@@ -54,14 +59,16 @@ def merge_lessons(lessons) -> list[Block]:
             last.video_url = (last.video_url
                               or getattr(lesson, "video_url", "") or "")
             continue
-        blocks.append(Block(
+        block = Block(
             class_id=lesson.class_id, date=lesson.date,
             start_time=lesson.start_time, end_time=lesson.end_time,
             subject=lesson.subject, room=lesson.room, teacher=lesson.teacher,
             status=lesson.status, units=1,
             note=getattr(lesson, "note", "") or "",
             video_url=getattr(lesson, "video_url", "") or "",
-        ))
+        )
+        blocks.append(block)
+        offen[kennung] = block
     return blocks
 
 
